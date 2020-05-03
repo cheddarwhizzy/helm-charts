@@ -1,7 +1,7 @@
 # Required 
-envName: 
 serviceName: 
 
+envName: 
 nameOverride: 
 fullnameOverride: 
 
@@ -31,16 +31,16 @@ envFrom: {} # mount in additional configMap env vars
 env: {}
   # BRANCH: integration
 
-affinity: |
-  podAntiAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-    - labelSelector:
-        matchExpressions:
-        - key: app
-          operator: In
-          values:
-          - {{ .Values.serviceName }}
-      topologyKey: "kubernetes.io/hostname"
+# affinity: |
+#   podAntiAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#     - labelSelector:
+#         matchExpressions:
+#         - key: app
+#           operator: In
+#           values:
+#           - {{ .Values.serviceName }}
+#       topologyKey: "kubernetes.io/hostname"
 
 tolerations: []
 nodeSelector: {}
@@ -139,6 +139,7 @@ containers: []
 #     mountPath: /etc/myapp
 
 # Run on lifecycle
+hookvolumes: []
 hooks: []
 # - name: some-hook
 #   onEvent: pre-install,pre-upgrade
@@ -147,6 +148,14 @@ hooks: []
 #   initContainers: [] # Job Only
 #   containers: [] # Job Only
 #   volumes: [] # applied to job spec
+
+rbac:
+  create: false
+  rules: []
+  # - apiGroups: [""]
+  #   resources: ["pods", "pods/exec", "pods/log"]
+  #   verbs: ["*"]
+
 
 cronjobs:
   jobs: []

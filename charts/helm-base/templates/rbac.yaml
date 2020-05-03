@@ -1,0 +1,34 @@
+{{- if .Values.rbac.create }}
+
+{{- $selectorLabels := include "helm-base.selectorLabels" . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $volumes := include "helm-base.volumes" . }}
+{{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
+{{- $serviceName := include "helm-base.fullname" . }}
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $serviceName }}
+  labels:
+{{ $selectorLabels | indent 4 }}
+rules:
+{{ toYaml .Values.rbac.rules }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $serviceName }}
+  labels:
+{{ $selectorLabels | indent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $serviceName }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "helm-base.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+
+{{- end }}

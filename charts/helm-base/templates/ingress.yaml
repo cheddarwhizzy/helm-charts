@@ -1,0 +1,60 @@
+{{- if and .Values.ingress.enabled .Values.services -}}
+{{- $root := $ }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $name := include "helm-base.fullname" . }}
+{{- $firstService := first .Values.services }}
+{{- $defaultServiceName := printf "%s-%s" $name $firstService.name }}
+{{if $firstService.fullname}}{{$defaultServiceName = $firstService.fullname}}{{end}}
+{{- range $route := $.Values.ingress.routes }}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $name }}-{{ $route.name }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: {{ default $.Values.ingress.class "nginx" }}
+  {{- range $key, $value := $route.annotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+  {{- end }}
+  {{- range $key, $value := $.Values.ingress.annotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+  {{- end }}
+
+spec:
+  rules:
+    - host: "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
+      http:
+        paths:
+          - path: {{ $route.path }}
+            backend:
+              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name $route.service}}{{end}}
+              servicePort: {{ default $route.port $.Values.ingress.port }}
+    {{- if $route.aliases }}
+    {{- range $_, $alias := $route.aliases }}
+    - host: "{{ tpl $alias $ }}"
+      http:
+        paths:
+          - path: {{ $route.path }}
+            backend:
+              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name $route.service}}{{end}}
+              servicePort: {{ default $route.port $.Values.ingress.port }}
+    {{- end }}
+    {{- end }}
+  {{- if or ($route.secretName) ($root.Values.ingress.secretName) }}
+  tls:
+    - secretName: {{if $route.secretName }}{{ tpl $route.secretName $root }}{{else}}{{tpl $root.Values.ingress.secretName $root}}{{end}}
+      hosts:
+        - "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
+      {{- if $route.aliases }}
+        {{- range $_, $alias := $route.aliases }}
+        - "{{ tpl $alias $ }}"
+        {{- end }}
+      {{- end }}
+  {{- end }}
+
+{{- end -}}
+
+{{- end }}
+

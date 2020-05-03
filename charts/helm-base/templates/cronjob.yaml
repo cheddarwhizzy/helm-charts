@@ -1,0 +1,79 @@
+{{- $name := include "helm-base.fullname" . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $extraAnnotations := include "helm-base.commonAnnotations" . }}
+{{- if .Values.cronjobs.jobs -}}
+{{- range $key, $job := .Values.cronjobs.jobs }}
+
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ $name }}-{{ $job.name }}
+  labels:
+{{ $commonLabels | indent 4 }}
+spec:
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 5
+  startingDeadlineSeconds: 20
+  jobTemplate:
+    metadata:
+      creationTimestamp: null
+    spec:
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            run: {{ $job.name }}
+          annotations:
+{{ $extraAnnotations | indent 12 }}
+        spec:
+          restartPolicy: OnFailure
+          terminationGracePeriodSeconds: 30
+
+          {{- if $.Values.serviceAccount.name }}
+          serviceAccount: {{ $.Values.serviceAccount.name }}
+          {{- end }}
+
+          {{- if $.Values.imagePullSecrets }}
+          imagePullSecrets:
+          {{- range $_, $s := $.Values.imagePullSecrets }}
+          - name: "{{ $s }}"
+          {{- end }}
+          {{- end }}
+
+          containers:
+          - name: {{ $job.name }}
+            image: {{if $job.image }}{{ tpl $job.image $ }}{{else}}{{ tpl $.Values.cronjobs.image $ }}{{end}}
+            command: {{ toYaml $job.command | nindent 12 }}
+          {{- if $.Values.cronjobs.envFrom  }}
+          {{- range $_, $e := $.Values.cronjobs.envFrom }}
+            envFrom:
+            {{- if $e.configMapRef }}
+            - configMapRef:
+                name: {{if $e.configMapRef.fullname }}{{ $e.configMapRef.fullname }}{{else}}{{ $name }}-{{ $e.configMapRef.name }}{{end}}
+            {{- else if $e.secretRef }}
+            - secretRef:
+                name: {{if $e.secretRef.fullname }}{{ $e.secretRef.fullname }}{{else}}{{ $name }}-{{ $e.secretRef.name }}{{end}}
+            {{- end }}
+          {{- end }}
+          {{- end }}
+        {{- with $.Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 8 }}
+          {{- end }}
+        {{- with $.Values.affinity }}
+          affinity:
+            {{- tpl . $ | nindent 8 }}
+        {{- end }}
+        {{- with $.Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+
+  schedule: "{{ $job.schedule }}"
+  successfulJobsHistoryLimit: 3
+  suspend: false
+
+  {{- end }}
+  {{- end -}}

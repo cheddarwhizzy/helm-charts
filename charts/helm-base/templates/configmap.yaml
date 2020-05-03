@@ -1,0 +1,30 @@
+{{- $name := include "helm-base.fullname" . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- range $c := .Values.configMaps }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-{{ $c.name }}
+  labels:
+{{ $commonLabels | indent 4 }}
+data:
+
+{{- if eq (kindOf $c.data) "map" }}
+  {{- range $k, $d := $c.data}}
+  {{- if gt (len (splitList "\n" $d)) 1 }}
+  {{ tpl $k $ }}: |-
+{{ (tpl $d $) | indent 4 }}
+  {{- else }}
+  {{ tpl $k $ }}: {{ tpl (tpl $d $) $ }}
+  {{- end }} {{/* end if multiline */}}
+  {{- end }} {{/* end range */}}
+
+{{- else if eq (kindOf $c.data) "string" }}
+  {{- tpl $c.name $ }}: |
+{{ (tpl $c.data $) | indent 4 }}
+{{- else }}
+  DATATYPE: {{ kindOf $c.data }}
+{{- end }} {{/* end if type */}}
+{{- end }} {{/* end range c */}}
+

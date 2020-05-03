@@ -1,0 +1,108 @@
+{{- if and (.Values.containers) (eq .Values.kind "Deployment") }}
+
+{{- $selectorLabels := include "helm-base.selectorLabels" . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $volumes := include "helm-base.volumes" . }}
+{{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
+
+apiVersion: {{ .Values.apiVersion }}
+kind: Deployment 
+metadata:
+  name: {{ template "helm-base.fullname" . }}
+  labels:
+{{ $selectorLabels | indent 4 }}
+spec:
+  replicas: {{ $.Values.replicaCount }}
+  progressDeadlineSeconds: {{ $.Values.progressDeadlineSeconds }}
+  {{- if $.Values.minReadySeconds }}
+  minReadySeconds: {{ $.Values.minReadySeconds }}
+  {{- end }}
+  revisionHistoryLimit: {{ $.Values.revisionHistoryLimit }}
+  strategy:
+    type: {{ $.Values.strategy.type }}
+    rollingUpdate:
+      maxUnavailable: {{ $.Values.strategy.maxUnavailable }}
+      {{- if $.Values.strategy.maxSurge }}
+      maxSurge: {{ $.Values.strategy.maxSurge }}
+      {{- end }}
+  selector:
+    matchLabels:
+{{ $selectorLabels | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ $selectorLabels | indent 8 }}
+  
+  {{- if $.Values.commonAnnotations }}
+      annotations:
+{{- $commonAnnotations | indent 8 }}
+  {{- end }}
+
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- if .Values.serviceAccount.name }}
+      serviceAccount: {{ tpl .Values.serviceAccount.name $ }}
+      {{- end }}
+
+      {{- if .Values.dnsPolicy }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- end }}
+      {{- if .Values.dnsConfig }}
+      dnsConfig: 
+{{- toYaml .Values.dnsConfig | nindent 8 }}
+      {{- end }}
+
+      {{- if .Values.hostAliases }}
+      hostAliases:
+{{ toYaml .Values.hostAliases | indent 8}}
+      {{- end }}
+
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- range $_, $ips := .Values.imagePullSecrets }}
+      - name: {{ $ips }}
+      {{- end }}
+      {{- end }}
+
+{{- if .Values.initContainers }}
+      initContainers:
+{{- range $k, $c := .Values.initContainers }}
+{{- $new := dict }}
+{{- range $k, $v := $ }}
+{{- $_ := set $new $k $v }}
+{{- end }}
+{{- range $k, $v := $c }}
+{{- $_ := set $new $k $v }}
+{{- end }}
+{{ include "helm-base.containerBase" $new | indent 6 }}
+{{- end }}
+{{- end }}
+
+      containers:
+{{- range $k, $c := .Values.containers }}
+{{- $new := dict }}
+{{- range $k, $v := $ }}
+{{- $_ := set $new $k $v }}
+{{- end }}
+{{- range $k, $v := $c }}
+{{- $_ := set $new $k $v }}
+{{- end }}
+{{ include "helm-base.containerBase" $new | indent 6 }}
+{{- end }}
+
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- tpl . $ | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+
+{{ $volumes | indent 6 }}
+
+{{- end }}

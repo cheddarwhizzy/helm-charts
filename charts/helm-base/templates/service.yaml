@@ -1,0 +1,75 @@
+{{- if .Values.services }}
+{{- $root := $ }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $selectorLabels := include "helm-base.selectorLabels" . }}
+{{- $name := include "helm-base.fullname" . }}
+{{- range $k, $s := .Values.services }}
+{{- if $s.ports -}}
+
+{{- if eq $.Values.kind "Deployment" }}
+{{ $_ := set $root "s" $s }}
+
+{{/*- include "helm-base.serviceName" $root */}}
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end}}
+  labels:
+{{ $commonLabels | indent 4 }}
+spec:
+  type: {{ default "ClusterIP" $s.type }}
+  {{- if eq $s.type "ExternalName" }}
+  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
+  {{- end }}
+  ports:
+  {{- range $k, $port := $s.ports }}
+  - port: {{ $port.port }}
+    targetPort: {{ $port.port }}
+    protocol: {{ default "TCP" $s.protocol }}
+    name: "{{ $port.name }}"
+  {{- end}}
+{{- if ne $s.type "ExternalName" }}
+  selector:
+{{ $selectorLabels | indent 4 }}
+{{ end }}
+
+{{- else -}} {{/* is StatefulSet */}}
+
+{{ range $r, $_ := until ($.Values.replicaCount | int) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end}}-{{ $r }}
+  labels:
+{{ $commonLabels | indent 4 }}
+spec:
+  type: {{ default "ClusterIP" $s.type }}
+  {{- if eq $s.type "ExternalName" }}
+  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
+  {{- end }}
+  ports:
+  {{- range $k, $port := $s.ports }}
+  - port: {{ $port.port }}
+    targetPort: {{ $port.port }}
+    protocol: {{ default "TCP" $s.protocol }}
+    name: "{{ $port.name }}"
+  {{- end}}
+{{- if ne $s.type "ExternalName" }}
+  selector:
+{{ $selectorLabels | indent 4 }}
+{{ end }}
+{{- end }}
+
+{{- end }}
+{{- end }}
+{{- end }}
+
+
+
+
+
+{{- end }}

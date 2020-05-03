@@ -1,0 +1,12 @@
+apiVersion: v1
+entries:
+  helm-base:
+  - apiVersion: v1
+    created: "2020-05-02T23:12:31.313507-04:00"
+    description: Base helm chart
+    digest: 25bc9565ffaa07ef2d3e1ddafc5ee79d5513e32cd4b178d63d8736ea5aa1df5d
+    name: helm-base
+    urls:
+    - https://github.com/cheddarwhizzy/helm-charts/releases/download/helm-base-0.2.51-alpha/helm-base-0.2.51-alpha.tgz
+    version: 0.2.51-alpha
+generated: "2020-05-02T23:12:31.180272-04:00"

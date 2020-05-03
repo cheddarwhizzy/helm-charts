@@ -1,0 +1,9 @@
+{{- if .Values.networkPolicy.enable }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ template "helm-base.fullname" . }}-policy
+spec:
+{{ toYaml (tpl .Values.networkPolicy.policy $) | indent 2 }}
+
+{{- end }}

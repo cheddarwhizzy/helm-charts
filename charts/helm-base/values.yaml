@@ -1,0 +1,254 @@
+# Required 
+envName: 
+serviceName: 
+
+nameOverride: 
+fullnameOverride: 
+
+replicaCount: 1
+minReplicaCount: 1 # adjust according to app scale
+maxReplicaCount: 10 # adjust according to app scale
+apiVersion: apps/v1
+kind: Deployment # or StatefulSet
+serviceAccount:
+  create: false
+  name: default # vault-auth
+  annotations: {}
+
+
+terminationGracePeriodSeconds: 30
+image:
+  tag: latest
+  # repository: 
+imagePullSecrets: []
+# - name: some-image-pull-secret
+
+envFrom: {} # mount in additional configMap env vars
+# - configMapRef:
+#     name: special-config
+# - secretRef:
+#     name: secret-config
+env: {}
+  # BRANCH: integration
+
+affinity: |
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - {{ .Values.serviceName }}
+      topologyKey: "kubernetes.io/hostname"
+
+tolerations: []
+nodeSelector: {}
+
+commonAnnotations: {}
+  # deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
+
+services:
+# - name: some-service
+#   type: ClusterIP
+#   ports: []
+#   # - name: default
+#   #   port: 8000
+
+# Optional Cronjobs
+# cronjobs: 
+#   image:
+#     tag: latest
+#     repository: account-service
+#   jobs:
+#     - name: cache-buyside-user-responsiveness
+#       schedule: '0 19 * * *'
+#       command: 
+#         - python
+#         - bin/cache_buyside_user_responsiveness.py
+
+# Set these overrides in values.yaml
+
+# Volumes for deployments. Must also specify in initContainers/containers below
+volumes: []
+# - name: some-volume
+#   hostPath: 
+#     path: /path/to/mount
+# - name: some-configmap
+#   configMap:
+#     name: configmap-name
+# - name: some-emptydir
+#   emptyDir: {}
+# - name: all-in-one
+#   projected:
+#     sources:
+#     - secret:
+#         name: mysecret
+#         items:
+#           - key: username
+#             path: my-group/my-username
+#     - secret:
+#         name: mysecret2
+#         items:
+#           - key: password
+#             path: my-group/my-password
+#             mode: 511
+configMaps: []
+# - name: some-configmap
+#   data:
+#     config.json: |
+#       {"apiUrl":"https://my.domain.com"}
+
+secrets: []
+  # default:
+  #   enabled: true
+  #   mountPath: /secret-default
+  #   annotations:
+  #     test.secret.annotation: value
+  #   labels:
+  #     test_label: value
+  #   env:
+  #     SECRET_ENV_NAME: ENV_VALUE
+  #   files:
+  #     secret.test.txt: |-
+  #       some text
+
+progressDeadlineSeconds: 180
+# minReadySeconds: 0
+revisionHistoryLimit: 10
+strategy:
+  type: RollingUpdate
+  maxUnavailable: 0
+  maxSurge: 
+
+
+initContainers: []
+containers: []
+# - name: some-thing
+#   image: registry.domain.com/image:tag
+#   command:
+#   - sh
+#   - -c
+#   - |
+#     echo hello
+#     ./run_me.sh
+#   volumeMounts:
+#   - name: src
+#     mountPath: /app
+#   - name: some-configmap
+#     mountPath: /etc/myapp
+
+# Run on lifecycle
+hooks: []
+# - name: some-hook
+#   onEvent: pre-install,pre-upgrade
+#   weight: -5
+#   kind: Job # or ConfigMap
+#   initContainers: [] # Job Only
+#   containers: [] # Job Only
+#   volumes: [] # applied to job spec
+
+cronjobs:
+  jobs: []
+  image:
+    tag: latest
+
+hpa:
+  apiVersion: autoscaling/v2beta2
+  enabled: false
+  kind: Deployment # or 'StatefulSet'
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      targetAverageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      targetAverageValue: 75
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+  # - type: Pods
+  #   pods:
+  #     metricName: http_requests
+  #     targetAverageValue: 10
+
+podDisruptionBudget: 
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+networkPolicy:
+  enabled: false
+  policy: |
+    podSelector: {}
+    policyTypes:
+    - Ingress
+    ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            nginx: "true"
+ingress:
+  enabled: false
+  secretName: 
+  subdomain: 
+  domain: 
+  class: nginx # or 'haproxy'
+  annotations:
+    external-dns.alpha.kubernetes.io/target: nginx.lb.codeandtheory.net
+    external-dns.alpha.kubernetes.io/ttl: "60"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # prometheus.io/probe: "true"
+    # ingress.kubernetes.io/cors-enable: "true"
+    # ingress.kubernetes.io/config-backend: |
+    #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
+    #   http-request deny if !network_allowed
+
+  # privateIngressRules: |
+  #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
+  #   http-request deny if !network_allowed
+
+
+  # Ingress route multiHostCorsEnabled domains
+  corsAllowedDomains:
+  # - "some.domain.com"
+  # - "www.google.com"
+  # - "localhost:3000"
+  haproxyCorsTemplate: |
+    allow some host
+  nginxCorsTemplate: |
+    if ($http_origin ~* (^https?://([^/]+\.)*({{ $.Values.ingress.corsAllowedDomains | join "|" }}))) {
+        set $cors "true";
+    }
+    if ($request_method = 'OPTIONS') {
+      set $cors "${cors}options";
+    }
+    if ($cors = 'trueoptions') {
+      more_set_headers 'Access-Control-Allow-Origin: $http_origin';
+      more_set_headers 'Access-Control-Allow-Credentials: true';
+      more_set_headers 'Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS';
+      more_set_headers 'Access-Control-Allow-Headers: Authorization,Content-Type,Accept,Origin,User-Agent,DNT,Cache-Control,X-Mx-ReqToken,Keep-Alive,X-Requested-With,If-Modified-Since,Pragma,Expires';
+      more_set_headers 'Access-Control-Max-Age: 1728000';
+      more_set_headers 'Content-Type: text/plain charset=UTF-8';
+      more_set_headers 'Content-Length: 0';
+      return 204;
+    }
+    if ($cors = "true") {
+      more_set_headers 'Access-Control-Allow-Origin: $http_origin';
+      more_set_headers 'Access-Control-Allow-Credentials: true';
+      more_set_headers 'Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS';
+      more_set_headers 'Access-Control-Allow-Headers: Authorization,Content-Type,Accept,Origin,User-Agent,DNT,Cache-Control,X-Mx-ReqToken,Keep-Alive,X-Requested-With,If-Modified-Since,Pragma,Expires';
+    }
+
+  routes: []
+  # - name: default
+  #   path: /
+  #   host: '{{ required "You must provide .Values.ingress.subdomain" .Values.ingress.subdomain }}.{{ required "You must provide .Values.ingress.domain" .Values.ingress.domain }}'
+  #   # annotations:
+  #   port: 4000
+

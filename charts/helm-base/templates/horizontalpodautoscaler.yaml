@@ -1,0 +1,21 @@
+{{- if .Values.hpa.enabled -}}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+apiVersion: {{ .Values.hpa.apiVersion }}
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ template "helm-base.fullname" . }}
+  labels:
+{{ $commonLabels | indent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: {{ .Values.apiVersion }}
+    kind: {{ default "Deployment" .Values.hpa.kind }}
+    name: {{ template "helm-base.fullname" . }}
+  maxReplicas: {{ .Values.maxReplicaCount }}
+  minReplicas: {{ .Values.minReplicaCount }}
+  metrics:
+{{- if .Values.hpa.metrics }}
+{{ toYaml .Values.hpa.metrics | nindent 2 }}
+{{- end }}
+
+{{- end -}}

@@ -236,8 +236,8 @@ containers:
 
 {{- if or $.env $.Values.env $.envFrom }}
 {{- if $.envFrom  }}
-{{- range $_, $e := $.envFrom }}
   envFrom:
+{{- range $_, $e := $.envFrom }}
   {{- if $e.configMapRef }}
   - configMapRef:
       name: {{if $e.configMapRef.fullname }}{{ $e.configMapRef.fullname }}{{else}}{{ $name }}-{{ $e.configMapRef.name }}{{end}}

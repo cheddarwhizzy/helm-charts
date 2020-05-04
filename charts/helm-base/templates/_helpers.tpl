@@ -216,6 +216,16 @@ containers:
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{- if $.tty }}
+tty: true
+{{- end }}
+
+{{- if $.stdin }}
+stdin: true 
+{{- end }}
+
+
 {{- if $.workingDir }}
   workingDir: {{ tpl $.workingDir $ }}
 {{- end }}

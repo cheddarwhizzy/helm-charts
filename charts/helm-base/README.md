@@ -1,8 +1,7 @@
 #### Microservice Base Helm Chart
-This provides common config & environment variables across all python3 backend microservices.
+This is used as a subchart dependency to quickly construct common types of Deployments and Statefulset configurations 
 
-### Service to Service communication
-Kubernetes provides environment variables in the form of `SERVICE_NAME_SERVICE_HOST` and `SERVICE_NAME_SERVICE_PORT`. (the endpoint for `account-service` would be `ACCOUNT_SERVICE_SERVICE_HOST` `ACCOUNT_SERVICE_SERVICE_PORT`)
+See [The values file](./values.yaml) for available options.
 
 ### Adding Environment Variables
 See `<repository-name>/k8s/<repository-name>/values.yaml`
@@ -19,41 +18,21 @@ helm-base:
 
 
 ### Adding Nginx Routes
-See the `repository-name/k8s/service-name/values.yaml` `ingress` section
-
 **Options**
 - name: (Required)
 - path: (Required)
-- type: [api host portal hydra admin] (default api)
 - secretName: Override wildcard SSL cert
-- port: Override .service.ports[0]
-- public: Exposed to outside world (default true)
+- port: Override (defaults to .Values.ingress.port)
 - annotations: Kubernetes Nginx Ingress annotations to add to route
-- snippets: Additional nginx config to add to the route
 
-**Example API Route**
+**Example Route**
 ```
-    - name: root
-      path: /new-service/(.*)
-      rewriteTarget: /$1
-```
-
-**Example Primary Host Route**
-```
-    - name: root
-      path: /new-service/(.*)
-      type: host
-      rewriteTarget: /$1
-```
-
-**Advanced Route**
-```
-    - name: portal-assets-maps
-      path: /(header_)?(main|runtime|polyfills|vendor|common|styles|[0-9]+)(.[a-zA-Z0-9_]+)?.(js|css)(.map)$
-      type: portal
-      secretName: portal-wildcard
-      port: 81
-      public: false
-      annotations:
-        nginx.ingress.kubernetes.io/use-regex: "true"
+  ingress:
+    ...
+    routes:
+    - name: default
+      host: "some.host.domain.com"
+      port: 8080
+      path: /
+      annotations: {}
 ```

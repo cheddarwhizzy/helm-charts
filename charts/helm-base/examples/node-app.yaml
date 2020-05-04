@@ -1,0 +1,88 @@
+helm-base:
+
+  replicaCount: 1
+
+  serviceName: my-service
+
+  services:
+  - name: default
+    type: ClusterIP
+    ports:
+    - name: gotty
+      port: 8080
+
+  ingress:
+    enabled: true
+    domain: domain.com.com
+    subdomain: my-service.develop
+    secretName: my-service-develop-tls
+    annotations:
+      external-dns.alpha.kubernetes.io/target: nginx.loadbalancer.domain.com
+    routes:
+    - name: default
+      host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
+      port: 3000
+      path: /
+
+  affinity: "" # Override no duplicate on single host
+
+  volumes:
+  - name: src
+    emptyDir: {}
+  - name: env-file
+    configMap:
+      name: env-file
+    
+  configMaps:
+  - name: env-file
+    data:
+      .env: |
+        API_URL=https://{{ .Values.serviceName }}.{{ .Values.ingress.domain }}
+ 
+  commonAnnotations:
+    deployment_date: '{{ now | date "2006-01-02 15:04:05" }}' # forces bounce
+
+  initContainers:
+  - name: clone
+    image: codeandtheoryci/clone-repo
+    env:
+      GITHUB_TOKEN: <personal access token>
+    args:
+    - --branch
+    - master
+    - --group
+    - yourOrg
+    - --repo
+    - your-node-repo
+    - --out
+    - /app
+    volumeMounts:
+    - name: src
+      mountPath: /app
+
+  - name: build
+    image: node:12
+    args:
+    - sh
+    - -c
+    - |
+      yarn && yarn build
+    volumeMounts:
+    - name: src
+      mountPath: /app
+    - name: env-file
+      mountPath: /app/.env
+      subPath: .env
+
+  containers:
+  - name: start
+    image: node:12
+    command: ["yarn", "start"]
+    ports:
+    - 3000
+    waitFor:
+      port: 3000
+      initialDelaySeconds: 45
+    volumeMounts:
+    - name: src
+      mountPath: /app

@@ -218,11 +218,11 @@ containers:
 {{- end }}
 
 {{- if $.tty }}
-tty: true
+  tty: true
 {{- end }}
 
 {{- if $.stdin }}
-stdin: true 
+  stdin: true 
 {{- end }}
 
 

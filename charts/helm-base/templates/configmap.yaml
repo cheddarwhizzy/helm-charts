@@ -14,15 +14,15 @@ data:
   {{- range $k, $d := $c.data}}
   {{- if gt (len (splitList "\n" $d)) 1 }}
   {{ tpl $k $ }}: |-
-{{ (tpl $d $) | indent 4 | toString }}
+{{ (tpl $d $) | indent 4 }}
   {{- else }}
-  {{ tpl $k $ }}: {{ tpl (tpl $d $) $ | toString }}
+  {{ tpl $k $ }}: "{{ tpl (tpl $d $) $ }}"
   {{- end }} {{/* end if multiline */}}
   {{- end }} {{/* end range */}}
 
 {{- else if eq (kindOf $c.data) "string" }}
   {{- tpl $c.name $ }}: |
-{{ (tpl $c.data $) | indent 4 }}
+{{ (tpl $c.data $) | indent 4 | toString }}
 {{- else }}
   DATATYPE: {{ kindOf $c.data }}
 {{- end }} {{/* end if type */}}

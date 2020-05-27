@@ -5,6 +5,7 @@
 
 {{- range $k, $h := .Values.hooks }}
 {{ $kind := default "Job" $h.kind }}
+{{ $weight := default (mul -1 (add1 $k)) $h.weight }}
 
 {{- if eq $kind "Job" }}
 ---
@@ -16,7 +17,7 @@ metadata:
 {{ $commonLabels | indent 4 }}
   annotations:
     "helm.sh/hook": {{ default "pre-upgrade,pre-install" (tpl $h.onEvent $root) }}
-    "helm.sh/hook-weight": "{{ default (mul -1 (add1 $k)) $h.weight}}"
+    "helm.sh/hook-weight": "{{ $weight }}"
     "helm.sh/hook-delete-policy": {{ default "before-hook-creation" $h.deletePolicy }}
 spec:
   template:
@@ -112,7 +113,7 @@ metadata:
 {{ $commonLabels | indent 4 }}
   annotations:
     "helm.sh/hook": {{ default "pre-upgrade,pre-install" $h.onEvent }}
-    "helm.sh/hook-weight": "{{ default (mul -1 (add1 $k)) $h.weight}}"
+    "helm.sh/hook-weight": "{{ $weight }}"
 data:
 {{- if eq (kindOf $h.data) "map" }}
   {{- range $k, $d := $h.data}}
@@ -144,7 +145,7 @@ metadata:
 {{- $commonLabels | nindent 4 }}
   annotations:
     "helm.sh/hook": {{ default "pre-upgrade,pre-install" $h.onEvent }}
-    "helm.sh/hook-weight": "{{ default (mul -1 (add1 $k)) $h.weight}}"
+    "helm.sh/hook-weight": "{{ sub $weight 1 }}"
 rules:
 {{ toYaml $h.rbac.rules }}
 
@@ -157,7 +158,7 @@ metadata:
 {{- $commonLabels | nindent 4 }}
   annotations:
     "helm.sh/hook": {{ default "pre-upgrade,pre-install" $h.onEvent }}
-    "helm.sh/hook-weight": "{{ default (mul -1 (add1 $k)) $h.weight}}"
+    "helm.sh/hook-weight": "{{ sub $weight 1 }}"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -177,7 +178,7 @@ metadata:
   name: {{ tpl $h.serviceAccount.name $ }}
   annotations:
     "helm.sh/hook": {{ default "pre-upgrade,pre-install" $h.onEvent }}
-    "helm.sh/hook-weight": "{{ default (mul -1 (add1 $k)) $h.weight}}"
+    "helm.sh/hook-weight": "{{ sub $weight 1 }}"
 {{- if $h.serviceAccount.annotations }}
 {{ toYaml $h.serviceAccount.annotations | indent 4 }}
 {{ end }}

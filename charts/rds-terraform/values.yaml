@@ -10,7 +10,7 @@ config:
   hooks:
   - name: tf-config
     onEvent: "pre-install,pre-upgrade"
-    weight: -100
+    weight: -10000
     kind: ConfigMap
     data:
       main.tf: |
@@ -160,16 +160,21 @@ config:
   
   - name: run-terraform
     onEvent: "pre-install,pre-upgrade"
-    weight: -90
+    weight: -9999
     kind: Job
     volumes:
     - name: tf-config
       configMap:
         name: tf-config
-    - name: tmp
-      emptyDir: {}
     annotations:
       iam.amazonaws.com/role: devops
+    serviceAccount:
+      name: "{{ .Values.serviceName }}-tf-config"
+    rbac:
+      rules:
+      - apiGroups: [""]
+        resources: ["secrets"]
+        verbs: ["*"]
     containers:
     - name: terraform
       image: codeandtheoryci/terragrunt:latest
@@ -177,34 +182,16 @@ config:
       volumeMounts:
       - name: tf-config
         mountPath: /tf_config
-      - name: tmp
-        mountPath: /share
       command:
       - sh
       - -c
       - |
         cp -L /tf_config/* .
         terraform init && terraform apply -auto-approve
-        terraform output > /share/.env
-
-    containers:
-    - name: create-secret
-      image: bitnami/kubectl
-      workingDir: /app
-      volumeMounts:
-      - name: tf-config
-        mountPath: /tf_config
-      - name: tmp
-        mountPath: /share
-      command:
-      - sh
-      - -c
-      - |
-        kubectl create secret generic {{ .Values.serviceName }}-db --from-env-file=/share/.env
 
   - name: terraform-destroy
     onEvent: "pre-delete"
-    weight: -90
+    weight: -10000
     kind: Job
     volumes:
     - name: tf-config
@@ -229,7 +216,7 @@ config:
 
   - name: add-postgres-user
     onEvent: "pre-install"
-    weight: -25
+    weight: -9998
     kind: Job
     containers:
     - name: add-user

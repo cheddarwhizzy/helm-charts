@@ -1,0 +1,206 @@
+helm-base:
+  hooks:
+  - name: tf-config
+    onEvent: "pre-install,pre-upgrade"
+    weight: -100
+    kind: ConfigMap
+    data:
+      main.tf: |
+        terraform {
+          backend "s3" {
+            bucket = "picshapes-remote-state"
+            key    = "environments/{{ .Values.envName }}/{{ .Values.serviceName }}"
+            region = "us-east-1"
+          }
+        }
+
+        provider "aws" {
+          version = "~> 2.0"
+          region  = "us-east-1"
+        }
+
+        locals {
+          env_name = "spore"
+        }
+
+        data "aws_vpc" "main" {
+          tags = {
+            Name = "spore.kubernetes.picshapes.com"
+          }
+        }
+
+        data "aws_security_groups" "kube" {
+          tags = {
+            Name = "nodes.spore.kubernetes.picshapes.com"
+          }
+        }
+
+        data "aws_subnet_ids" "selected" {
+          vpc_id = "${data.aws_vpc.main.id}"
+        }
+
+        module "postgres" {
+          source  = "terraform-aws-modules/rds/aws"
+          version = "~> 2.0"
+
+          identifier = "picshapes-spore"
+
+          engine            = "postgres"
+          engine_version    = "11.5"
+          instance_class    = "db.t2.micro"
+          allocated_storage = "10"
+          publicly_accessible = false
+
+          name     = "picshapesadmin"
+          username = "picshapes"
+          password = "PiCsH2P50oi98u"
+          port     = "5432"
+
+          iam_database_authentication_enabled = false
+
+          vpc_security_group_ids = "${data.aws_security_groups.kube.ids}"
+
+          maintenance_window = "Mon:00:00-Mon:03:00"
+          backup_window      = "03:00-06:00"
+
+          # Enhanced Monitoring - see example for details on how to create the role
+          # by yourself, in case you don't want to create it automatically
+          monitoring_interval = "0"
+          monitoring_role_name = "MyRDSMonitoringRole"
+          create_monitoring_role = false
+
+          tags = {
+            Environment = "${local.env_name}"
+          }
+
+          # DB subnet group
+          subnet_ids = "${data.aws_subnet_ids.selected.ids}"
+
+          # DB parameter group
+          family = "postgres11"
+
+          # DB option group
+          major_engine_version = "11"
+
+          # Snapshot name upon DB deletion
+          final_snapshot_identifier = "picshapes-spore"
+
+          # Database Deletion Protection
+          deletion_protection = "false"
+
+          parameters = [
+            # {
+            #   name = "character_set_client"
+            #   value = "utf8"
+            # },
+            # {
+            #   name = "character_set_server"
+            #   value = "utf8"
+            # }
+          ]
+        }
+
+        outputs {
+            PGHOST = "${module.postgres.this_db_instance_address}"
+            PGPASSWORD = "${module.postgres.this_db_instance_password}"
+            PGUSER = "${module.postgres.this_db_instance_username}"
+            PGDATABASE = "${module.postgres.this_db_instance_name}"
+        }
+
+
+
+  - name: run-terraform
+    onEvent: "pre-install,pre-upgrade"
+    weight: -90
+    kind: Job
+    volumes:
+    - name: tf-config
+      configMap:
+        name: tf-config
+    - name: tmp
+      emptyDir: {}
+    annotations:
+      iam.amazonaws.com/role: jenkins
+    containers:
+    - name: terraform
+      image: codeandtheoryci/terragrunt:latest
+      workingDir: /app
+      volumeMounts:
+      - name: tf-config
+        mountPath: /tf_config
+      - name: tmp
+        mountPath: /share
+      command:
+      - sh
+      - -c
+      - |
+        cp -L /tf_config/* .
+        terraform init && terraform apply -auto-approve
+        terraform output > /share/.env
+
+    containers:
+    - name: create-secret
+      image: bitnami/kubectl
+      workingDir: /app
+      volumeMounts:
+      - name: tf-config
+        mountPath: /tf_config
+      - name: tmp
+        mountPath: /share
+      command:
+      - sh
+      - -c
+      - |
+        kubectl create secret generic {{ .Values.serviceName }}-db --from-env-file=/share/.env
+
+  - name: terraform-destroy
+    onEvent: "pre-delete"
+    weight: -90
+    kind: Job
+    volumes:
+    - name: tf-config
+      configMap:
+        name: tf-config
+    annotations:
+      iam.amazonaws.com/role: jenkins
+    containers:
+    - name: terraform
+      image: codeandtheoryci/terragrunt:latest
+      workingDir: /app
+      volumeMounts:
+      - name: tf-config
+        mountPath: /tf_config
+      command:
+      - sh
+      - -c
+      - |
+        cp -L /tf_config/* .
+        terraform init && terraform destroy -auto-approve || true
+
+
+  - name: add-postgres-user
+    onEvent: "pre-install"
+    weight: -25
+    deletePolicy: hook-succeeded
+    kind: Job
+    containers:
+    - name: add-user
+      image: postgres:11
+      envFrom:
+      - name: env-vars
+      env:
+        PGPASSWORD: "{{ .Values.vaultDevopsBasePath }}/{{ .Values.envName }}.{{ .Values.ingress.domain }}#db_master_password"
+        PGUSER: "{{ .Values.vaultDevopsBasePath }}/{{ .Values.envName }}.{{ .Values.ingress.domain }}#db_master_username"
+        PGHOST: "{{ .Values.vaultBasePath }}/{{ .Values.envName }}.{{ .Values.ingress.domain }}#POSTGRES_HOST"
+        PGDATABASE: "{{ .Values.vaultBasePath }}/{{ .Values.envName }}.{{ .Values.ingress.domain }}#POSTGRES_DB"
+        GRANT_TO_USERNAME: "{{ .Values.vaultBasePath }}/{{ .Values.envName }}.{{ .Values.ingress.domain }}#POSTGRES_USER"
+        GRANT_TO_PASSWORD: "{{ .Values.vaultBasePath }}/{{ .Values.envName }}.{{ .Values.ingress.domain }}#POSTGRES_PASSWORD"
+      command:
+      - sh
+      - -c
+      - |
+        psql -c "create user $GRANT_TO_USERNAME with encrypted password '$GRANT_TO_PASSWORD';"
+        psql -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $GRANT_TO_USERNAME;"
+        psql -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $GRANT_TO_USERNAME;"
+        psql -c "grant all on schema public to $GRANT_TO_USERNAME;"
+        psql -c "grant all privileges on database $PGDATABASE to $GRANT_TO_USERNAME;"

@@ -9,4 +9,18 @@ entries:
     urls:
     - https://github.com/cheddarwhizzy/helm-charts/releases/download/helm-base-0.1.0/helm-base-0.1.0.tgz
     version: 0.1.0
+  rds-terraform:
+  - apiVersion: v1
+    created: "2020-05-27T00:21:22.718333-04:00"
+    dependencies:
+    - alias: config
+      name: helm-base
+      repository: https://cheddarwhizzy.github.io/helm-charts/
+      version: 0.1.0
+    description: RDS Terraform Helm Chart.
+    digest: bc885a5a38e5c37282c98fadc5432795613267aa8c22b93ad686fd8513ff0244
+    name: rds-terraform
+    urls:
+    - https://github.com/cheddarwhizzy/helm-charts/releases/download/rds-terraform-1.0.0/rds-terraform-1.0.0.tgz
+    version: 1.0.0
 generated: "2020-05-02T23:12:31.180272-04:00"

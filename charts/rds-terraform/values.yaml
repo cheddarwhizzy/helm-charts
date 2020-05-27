@@ -1,0 +1,253 @@
+config:
+  terraformRemoteStateBucket:
+  dbUsername:
+  dbName:
+  dbSize:
+  clusterName:
+  sgName:
+  serviceName: 
+
+  hooks:
+  - name: tf-config
+    onEvent: "pre-install,pre-upgrade"
+    weight: -100
+    kind: ConfigMap
+    data:
+      main.tf: |
+        terraform {
+          backend "s3" {
+            bucket = "{{ .Values.terraformRemoteStateBucket }}"
+            key    = "environments/{{ .Release.Namespace }}/{{ .Values.serviceName }}/db"
+            region = "us-east-1"
+          }
+        }
+
+        provider "kubernetes" {
+          load_config_file = "false"
+        }
+
+        provider "aws" {
+          version = "~> 2.0"
+          region  = "us-east-1"
+        }
+
+        locals {
+          env_name = "{{ .Release.Namespace }}"
+        }
+
+        data "aws_vpc" "main" {
+          tags = {
+            Name = "{{ .Values.clusterName }}"
+          }
+        }
+
+        data "aws_security_groups" "kube" {
+          tags = {
+            Name = "{{ .Values.sgName }}"
+          }
+        }
+
+        data "aws_subnet_ids" "selected" {
+          vpc_id = "${data.aws_vpc.main.id}"
+        }
+
+        resource "random_password" "db_admin_password" {
+          length = 16
+          special = false
+        }
+
+        module "postgres" {
+          source  = "terraform-aws-modules/rds/aws"
+          version = "~> 2.0"
+
+          identifier = "{{ .Values.dbName }}-{{ .Release.Namespace }}"
+
+          engine            = "postgres"
+          engine_version    = "11.5"
+          instance_class    = "{{ .Values.dbSize }}"
+          allocated_storage = "10"
+          publicly_accessible = true
+
+          name     = "{{ .Values.dbUsername }}admin"
+          username = "{{ .Values.dbUsername }}admin"
+          password = random_password.db_admin_password.result
+          port     = "5432"
+
+          iam_database_authentication_enabled = false
+
+          vpc_security_group_ids = "${data.aws_security_groups.kube.ids}"
+
+          maintenance_window = "Mon:00:00-Mon:03:00"
+          backup_window      = "03:00-06:00"
+
+          # Enhanced Monitoring - see example for details on how to create the role
+          # by yourself, in case you don't want to create it automatically
+          monitoring_interval = "0"
+          monitoring_role_name = "MyRDSMonitoringRole"
+          create_monitoring_role = false
+
+          tags = {
+            Environment = "${local.env_name}"
+          }
+
+          # DB subnet group
+          subnet_ids = "${data.aws_subnet_ids.selected.ids}"
+
+          # DB parameter group
+          family = "postgres11"
+
+          # DB option group
+          major_engine_version = "11"
+
+          # Snapshot name upon DB deletion
+          final_snapshot_identifier = "{{ .Values.dbName }}-{{ .Release.Namespace }}"
+
+          # Database Deletion Protection
+          deletion_protection = "true"
+
+          parameters = [
+            # {
+            #   name = "character_set_client"
+            #   value = "utf8"
+            # },
+            # {
+            #   name = "character_set_server"
+            #   value = "utf8"
+            # }
+          ]
+        }
+
+        resource "kubernetes_secret" "db_secrets" {
+          metadata {
+            name = "{{ .Values.serviceName }}-db"
+            namespace = "{{ .Release.Namespace }}"
+            annotations = {
+              "kubernetes.io/service-account.name" = "{{ .Values.serviceName }}"
+            }
+          }
+          data = {
+            ADMIN_PGUSER = "${module.postgres.this_db_instance_username}"
+            ADMIN_PGPASSWORD = "${module.postgres.this_db_instance_password}"
+            PGHOST = "${module.postgres.this_db_instance_address}"
+            PGUSER = "{{ .Values.dbUsername }}"
+            PGPORT = "5432"
+            PGPASSWORD = random_password.db_password.result
+            PGDATABASE = "${module.postgres.this_db_instance_name}"
+          }
+        }
+
+        resource "random_password" "db_password" {
+          length = 16
+          special = false
+        }
+
+        output PGHOST {
+            value = "${module.postgres.this_db_instance_address}"
+        }
+        output PGPASSWORD {
+            sensitive = true
+            value = "${module.postgres.this_db_instance_password}"
+        }
+        output PGUSER {
+            value = "${module.postgres.this_db_instance_username}"
+        }
+        output PGDATABASE {
+            value = "${module.postgres.this_db_instance_name}"
+        }
+
+
+
+  
+  - name: run-terraform
+    onEvent: "pre-install,pre-upgrade"
+    weight: -90
+    kind: Job
+    volumes:
+    - name: tf-config
+      configMap:
+        name: tf-config
+    - name: tmp
+      emptyDir: {}
+    annotations:
+      iam.amazonaws.com/role: devops
+    containers:
+    - name: terraform
+      image: codeandtheoryci/terragrunt:latest
+      workingDir: /app
+      volumeMounts:
+      - name: tf-config
+        mountPath: /tf_config
+      - name: tmp
+        mountPath: /share
+      command:
+      - sh
+      - -c
+      - |
+        cp -L /tf_config/* .
+        terraform init && terraform apply -auto-approve
+        terraform output > /share/.env
+
+    containers:
+    - name: create-secret
+      image: bitnami/kubectl
+      workingDir: /app
+      volumeMounts:
+      - name: tf-config
+        mountPath: /tf_config
+      - name: tmp
+        mountPath: /share
+      command:
+      - sh
+      - -c
+      - |
+        kubectl create secret generic {{ .Values.serviceName }}-db --from-env-file=/share/.env
+
+  - name: terraform-destroy
+    onEvent: "pre-delete"
+    weight: -90
+    kind: Job
+    volumes:
+    - name: tf-config
+      configMap:
+        name: tf-config
+    annotations:
+      iam.amazonaws.com/role: devops
+    containers:
+    - name: terraform
+      image: codeandtheoryci/terragrunt:latest
+      workingDir: /app
+      volumeMounts:
+      - name: tf-config
+        mountPath: /tf_config
+      command:
+      - sh
+      - -c
+      - |
+        cp -L /tf_config/* .
+        terraform init && terraform destroy -auto-approve || true
+
+
+  - name: add-postgres-user
+    onEvent: "pre-install"
+    weight: -25
+    kind: Job
+    containers:
+    - name: add-user
+      image: postgres:11
+      envFrom:
+      - secretRef:
+          name: db
+      command:
+      - sh
+      - -c
+      - |
+        export GRANT_TO_USERNAME=$PGUSER
+        export GRANT_TO_PASSWORD=$PGPASSWORD
+        export PGUSER=$ADMIN_PGUSER
+        export PGPASSWORD=$ADMIN_PGPASSWORD
+        psql -c "create user $GRANT_TO_USERNAME with encrypted password '$GRANT_TO_PASSWORD';"
+        psql -c "ALTER ROLE $GRANT_TO_USERNAME WITH PASSWORD '$GRANT_TO_PASSWORD'"
+        psql -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $GRANT_TO_USERNAME;"
+        psql -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $GRANT_TO_USERNAME;"
+        psql -c "grant all on schema public to $GRANT_TO_USERNAME;"
+        psql -c "grant all privileges on database $PGDATABASE to $GRANT_TO_USERNAME;"

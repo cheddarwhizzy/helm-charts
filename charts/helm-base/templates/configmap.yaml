@@ -14,9 +14,9 @@ data:
   {{- range $k, $d := $c.data}}
   {{- if gt (len (splitList "\n" $d)) 1 }}
   {{ tpl $k $ }}: |-
-{{ (tpl $d $) | indent 4 }}
+{{ (tpl $d $) | indent 4 | toString }}
   {{- else }}
-  {{ tpl $k $ }}: {{ tpl (tpl $d $) $ }}
+  {{ tpl $k $ }}: {{ tpl (tpl $d $) $ | toString }}
   {{- end }} {{/* end if multiline */}}
   {{- end }} {{/* end range */}}
 

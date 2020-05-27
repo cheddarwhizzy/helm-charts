@@ -39,6 +39,7 @@ spec:
   {{- end }}
 
     spec:
+      hostNetwork: {{ .Values.hostNetwork }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- if .Values.serviceAccount.name }}
       serviceAccount: {{ tpl .Values.serviceAccount.name $ }}

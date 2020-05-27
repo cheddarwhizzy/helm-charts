@@ -44,7 +44,7 @@ env: {}
 
 tolerations: []
 nodeSelector: {}
-
+hostNetwork: false
 commonAnnotations: {}
   # deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
 
@@ -208,10 +208,11 @@ ingress:
   subdomain: 
   domain: 
   class: nginx # or 'haproxy'
-  annotations:
-    external-dns.alpha.kubernetes.io/target: nginx.lb.codeandtheory.net
-    external-dns.alpha.kubernetes.io/ttl: "60"
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+  annotations: {}
+    # external-dns.alpha.kubernetes.io/target: nginx.lb.domain.com
+    # external-dns.alpha.kubernetes.io/ttl: "60"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # certmanager.k8s.io/cluster-issuer: letsencrypt-prod-http
     # prometheus.io/probe: "true"
     # ingress.kubernetes.io/cors-enable: "true"
     # ingress.kubernetes.io/config-backend: |

@@ -1,5 +1,6 @@
 {{- $name := include "helm-base.fullname" . }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
 {{- range $c := .Values.configMaps }}
 ---
 apiVersion: v1
@@ -8,15 +9,18 @@ metadata:
   name: {{ $name }}-{{ $c.name }}
   labels:
 {{ $commonLabels | indent 4 }}
+  annotations:
+{{ $commonAnnotations | indent 4 }}
 data:
 
 {{- if eq (kindOf $c.data) "map" }}
   {{- range $k, $d := $c.data}}
-  {{- if gt (len (splitList "\n" $d)) 1 }}
+  {{ $value := $d | toString }}
+  {{- if gt (len (splitList "\n" $value)) 1 }}
   {{ tpl $k $ }}: |-
-{{ (tpl $d $) | indent 4 }}
+{{ (tpl $value $) | indent 4 }}
   {{- else }}
-  {{ tpl $k $ }}: "{{ tpl (tpl $d $) $ }}"
+  {{- tpl $k $ }}: "{{ tpl (tpl $value $) $ }}"
   {{- end }} {{/* end if multiline */}}
   {{- end }} {{/* end range */}}
 

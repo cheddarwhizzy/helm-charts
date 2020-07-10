@@ -3,9 +3,28 @@ config:
   dbUsername:
   dbName:
   dbSize:
+  dbClass:
   clusterName:
   sgName:
   serviceName: 
+  deletionProtection: "false"
+  region: us-east-1
+  dbEngine: postgres
+  dbEngineVersion: 11.5
+  dbMajorEngineVersion: 11
+  dbFamily: postgres11
+  publiclyAccessible: "false"
+  # parameters: |
+  #   [
+  #     {
+  #       name = "character_set_client"
+  #       value = "utf8"
+  #     },
+  #     {
+  #       name = "character_set_server"
+  #       value = "utf8"
+  #     }
+  #   ]
 
   hooks:
   - name: tf-config
@@ -18,7 +37,7 @@ config:
           backend "s3" {
             bucket = "{{ .Values.terraformRemoteStateBucket }}"
             key    = "environments/{{ .Release.Namespace }}/{{ .Values.serviceName }}/db"
-            region = "us-east-1"
+            region = "{{ .Values.region }}"
           }
         }
 
@@ -28,7 +47,7 @@ config:
 
         provider "aws" {
           version = "~> 2.0"
-          region  = "us-east-1"
+          region = "{{ .Values.region }}"
         }
 
         locals {
@@ -56,19 +75,19 @@ config:
           special = false
         }
 
-        module "postgres" {
+        module "db" {
           source  = "terraform-aws-modules/rds/aws"
           version = "~> 2.0"
 
           identifier = "{{ .Values.dbName }}-{{ .Release.Namespace }}"
 
-          engine            = "postgres"
-          engine_version    = "11.5"
-          instance_class    = "{{ .Values.dbSize }}"
-          allocated_storage = "10"
-          publicly_accessible = true
+          engine            = "{{ .Values.dbEngine }}"
+          engine_version    = "{{ .Values.dbEngineVersion }}"
+          instance_class    = "{{ .Values.dbClass }}"
+          allocated_storage = "{{ .Values.dbSize }}"
+          publicly_accessible = {{ .Values.publiclyAccessible }}
 
-          name     = "{{ .Values.dbUsername }}admin"
+          name     = "{{ .Values.dbUsername }}"
           username = "{{ .Values.dbUsername }}admin"
           password = random_password.db_admin_password.result
           port     = "5432"
@@ -94,27 +113,20 @@ config:
           subnet_ids = "${data.aws_subnet_ids.selected.ids}"
 
           # DB parameter group
-          family = "postgres11"
+          family = "{{ .Values.dbFamily }}"
 
           # DB option group
-          major_engine_version = "11"
+          major_engine_version = "{{ .Values.dbMajorEngineVersion }}"
 
           # Snapshot name upon DB deletion
           final_snapshot_identifier = "{{ .Values.dbName }}-{{ .Release.Namespace }}"
 
           # Database Deletion Protection
-          deletion_protection = "true"
+          deletion_protection = "{{ .Values.deletionProtection }}"
 
-          parameters = [
-            # {
-            #   name = "character_set_client"
-            #   value = "utf8"
-            # },
-            # {
-            #   name = "character_set_server"
-            #   value = "utf8"
-            # }
-          ]
+          {{- if .Values.parameters }}
+          parameters = {{ .Values.parameters }}
+          {{- end }}
         }
 
         resource "kubernetes_secret" "db_secrets" {
@@ -126,13 +138,13 @@ config:
             }
           }
           data = {
-            ADMIN_PGUSER = "${module.postgres.this_db_instance_username}"
-            ADMIN_PGPASSWORD = "${module.postgres.this_db_instance_password}"
-            PGHOST = "${module.postgres.this_db_instance_address}"
+            ADMIN_PGUSER = "${module.db.this_db_instance_username}"
+            ADMIN_PGPASSWORD = "${module.db.this_db_instance_password}"
+            PGHOST = "${module.db.this_db_instance_address}"
             PGUSER = "{{ .Values.dbUsername }}"
             PGPORT = "5432"
             PGPASSWORD = random_password.db_password.result
-            PGDATABASE = "${module.postgres.this_db_instance_name}"
+            PGDATABASE = "${module.db.this_db_instance_name}"
           }
         }
 
@@ -142,17 +154,17 @@ config:
         }
 
         output PGHOST {
-            value = "${module.postgres.this_db_instance_address}"
+            value = "${module.db.this_db_instance_address}"
         }
         output PGPASSWORD {
             sensitive = true
-            value = "${module.postgres.this_db_instance_password}"
+            value = "${module.db.this_db_instance_password}"
         }
         output PGUSER {
-            value = "${module.postgres.this_db_instance_username}"
+            value = "${module.db.this_db_instance_username}"
         }
         output PGDATABASE {
-            value = "${module.postgres.this_db_instance_name}"
+            value = "${module.db.this_db_instance_name}"
         }
 
 
@@ -199,6 +211,8 @@ config:
         name: tf-config
     annotations:
       iam.amazonaws.com/role: devops
+    serviceAccount:
+      name: "{{ .Values.serviceName }}-tf-config"
     containers:
     - name: terraform
       image: codeandtheoryci/terragrunt:latest
@@ -215,7 +229,7 @@ config:
 
 
   - name: add-postgres-user
-    onEvent: "pre-install"
+    onEvent: "pre-install,pre-upgrade"
     weight: -9998
     kind: Job
     containers:

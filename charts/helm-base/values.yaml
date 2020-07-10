@@ -211,7 +211,7 @@ ingress:
   annotations: {}
     # external-dns.alpha.kubernetes.io/target: nginx.lb.domain.com
     # external-dns.alpha.kubernetes.io/ttl: "60"
-    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # cert-manager.io/cluster-issuer: letsencrypt-prod-http
     # certmanager.k8s.io/cluster-issuer: letsencrypt-prod-http
     # prometheus.io/probe: "true"
     # ingress.kubernetes.io/cors-enable: "true"

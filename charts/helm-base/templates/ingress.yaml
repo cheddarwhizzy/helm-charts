@@ -29,7 +29,7 @@ spec:
         paths:
           - path: {{ $route.path }}
             backend:
-              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name $route.service}}{{end}}
+              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}
               servicePort: {{ default $route.port $.Values.ingress.port }}
     {{- if $route.aliases }}
     {{- range $_, $alias := $route.aliases }}
@@ -38,7 +38,7 @@ spec:
         paths:
           - path: {{ $route.path }}
             backend:
-              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name $route.service}}{{end}}
+              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}
               servicePort: {{ default $route.port $.Values.ingress.port }}
     {{- end }}
     {{- end }}

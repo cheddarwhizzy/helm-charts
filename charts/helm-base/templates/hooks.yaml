@@ -4,8 +4,9 @@
 {{- $root := $ }}
 
 {{- range $k, $h := .Values.hooks }}
+{{- $numHooks := len $.Values.hooks -}}
 {{ $kind := default "Job" $h.kind }}
-{{ $weight := default (mul -1 (add1 $k)) $h.weight }}
+{{ $weight := default $k $h.weight }}
 
 {{- if eq $kind "Job" }}
 ---
@@ -117,11 +118,12 @@ metadata:
 data:
 {{- if eq (kindOf $h.data) "map" }}
   {{- range $k, $d := $h.data}}
-  {{- if gt (len (splitList "\n" $d)) 1 }}
+  {{ $value := $d | toString }}
+  {{- if gt (len (splitList "\n" $value)) 1 }}
   {{ tpl $k $ }}: |-
-{{ (tpl $d $) | indent 4 }}
+{{ (tpl $value $) | indent 4 }}
   {{- else }}
-  {{ tpl $k $ }}: {{ tpl (tpl $d $) $ }}
+  {{- tpl $k $ }}: "{{ tpl (tpl $value $) $ }}"
   {{- end }} {{/* end if multiline */}}
   {{- end }} {{/* end range */}}
 

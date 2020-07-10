@@ -90,6 +90,10 @@ volumes:
 - name: {{ $vol.name }}
   configMap:
     name: {{ $name }}-{{ $vol.configMap.name }}
+    {{- if $vol.configMap.defaultMode }}
+    defaultMode: {{ $vol.configMap.defaultMode }}
+    {{- end }}
+
 {{- else if $vol.secret }}
 - name: {{ $vol.name }}
   secret:
@@ -99,11 +103,11 @@ volumes:
   nfs:
     server: "{{ tpl $vol.nfs.server $ }}"
     path: "{{ tpl $vol.nfs.path $ }}"
-{{- if hasKey $vol "hostPath" }}
+{{- else if $vol.hostPath }}
 - name: {{ $vol.name }}
   hostPath:
-    path: {{ $vol.path }}
-{{- end -}}
+    path: {{ $vol.hostPath.path }}
+{{- else }}
 {{- end -}}
 {{- end -}}
 {{- end -}}
@@ -196,14 +200,14 @@ containers:
 
 
 - name: {{ tpl $.name $ }}
-  image: "{{ tpl $.image $ }}"
+  image: "{{ tpl (tpl $.image $) $ }}"
   imagePullPolicy: {{ default "Always" $.imagePullPolicy }}
 {{- if $.command }}  
   command: 
 {{- $new := list }}
 {{- range $_, $v := $.command }}
 {{- with $v }}
-{{- $new = append $new (tpl . $) }}
+{{- $new = append $new (tpl (tpl . $) $) }}
 {{- end }}
 {{- end }}
 {{ toYaml $new | indent 2 }}
@@ -330,13 +334,15 @@ containers:
 {{- if $.ports }}
   ports:
 {{- range $k, $v := $.ports }}
-  - containerPort: {{ $v }}
+  - name: {{ $v.name }}
+    containerPort: {{ $v.port }}
+    protocol: {{ default "TCP" $v.protocol }}
 {{- end }}
 {{- end }}
 
 {{- if $.lifecycle }}
   lifecycle:
-{{ $.lifecycle | indent 2 }}
+{{ toYaml $.lifecycle | indent 4 }}
 {{- end }}
 
 {{- end }}

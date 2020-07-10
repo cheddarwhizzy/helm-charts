@@ -1,5 +1,6 @@
 {{- if eq .Values.kind "StatefulSet" }}
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
+{{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
 {{- $volumes := include "helm-base.volumes" . }}
 
 apiVersion: apps/v1
@@ -9,15 +10,19 @@ metadata:
   labels:
 {{ $selectorLabels | indent 4 }}
 spec:
+  updateStrategy: 
+    type: {{ default "RollingUpdate" .Values.statefulSet.updateStrategy }}
   selector:
     matchLabels:
       app: {{ include "helm-base.fullname" . }}
-  serviceName: {{ include "helm-base.fullname" . }}
+  serviceName: {{ default (include "helm-base.fullname" .) .Values.statefulSet.serviceName }}
   replicas: {{ .Values.replicaCount }}
   template:
     metadata:
       labels:
-        app: {{ include "helm-base.fullname" . }}
+{{ $selectorLabels | indent 8 }}
+      annotations:
+{{ $commonAnnotations | indent 8 }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
 
@@ -87,8 +92,8 @@ spec:
     {{- end }}
 
 
-
-
   volumeClaimTemplates:
-{{ toYaml .Values.volumeClaimTemplates | nindent 4 }}
+{{ tpl (toYaml .Values.volumeClaimTemplates) $ | nindent 4 }}
 {{- end }}
+
+

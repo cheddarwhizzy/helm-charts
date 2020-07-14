@@ -10,7 +10,7 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ $name }}-{{ $route.name }}
+  name: {{ $name }}-{{ tpl $route.name $ }}
   labels:
 {{ $commonLabels | indent 4 }}
   annotations:

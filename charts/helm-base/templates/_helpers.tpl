@@ -3,7 +3,7 @@
 Expand the name of the chart.
 */}}
 {{- define "helm-base.name" -}}
-{{- default $.Chart.Name $.Values.serviceName | trunc 63 | trimSuffix "-" -}}
+{{- default $.Release.Name $.Values.serviceName | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
@@ -30,12 +30,12 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 
 {{- define "helm-base.commonLabels" -}}
-app: {{ $.Values.serviceName }}
+app: {{ include "helm-base.name" . }}
 release: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "helm-base.selectorLabels" -}}
-app: {{ $.Values.serviceName }}
+app: {{ include "helm-base.name" . }}
 release: {{ .Release.Name }}
 {{ end }}
 

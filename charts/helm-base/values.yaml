@@ -140,7 +140,9 @@ containers: []
 
 # Run on lifecycle
 hookvolumes: []
+preHooks: []
 hooks: []
+postHooks: []
 # - name: some-hook
 #   onEvent: pre-install,pre-upgrade
 #   weight: -5
@@ -262,3 +264,6 @@ ingress:
   #   # annotations:
   #   port: 4000
 
+  # dnsConfig:
+  #   nameservers: []
+  #     # - 10.0.0.2

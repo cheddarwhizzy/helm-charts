@@ -334,9 +334,15 @@ containers:
 {{- if $.ports }}
   ports:
 {{- range $k, $v := $.ports }}
+{{- if eq (kindOf $v) "map" }}
   - name: {{ $v.name }}
     containerPort: {{ $v.port }}
     protocol: {{ default "TCP" $v.protocol }}
+{{- else }}
+  - name: {{ printf "%s-%s" $name ($k | toString) }}
+    containerPort: {{ $v }}
+    protocol: "TCP"
+{{- end }}
 {{- end }}
 {{- end }}
 

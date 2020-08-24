@@ -1,6 +1,14 @@
 {{- $name := include "helm-base.fullname" . }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
+{{ $currentScope := .}}
+{{ range $path, $_ :=  $.Files.Glob  "files/*" }}
+    {{- with $currentScope}}
+      {{ $path }}: {{ $path }}
+    {{- end }}
+{{ end }}
+
+
 {{- range $c := .Values.configMaps }}
 ---
 apiVersion: v1
@@ -17,16 +25,15 @@ data:
   {{- range $k, $d := $c.data}}
   {{ $value := $d | toString }}
   {{- if gt (len (splitList "\n" $value)) 1 }}
-  {{ tpl $k $ }}: |-
-{{ (tpl $value $) | indent 4 }}
+  {{ tpl (tpl $k $) $}}: |-
+{{ tpl (tpl $value $) $ | indent 4 }}
   {{- else }}
-  {{- tpl $k $ }}: "{{ tpl (tpl $value $) $ }}"
+  {{- tpl (tpl $k $) $ }}: "{{ tpl (tpl $value $) $ }}"
   {{- end }} {{/* end if multiline */}}
   {{- end }} {{/* end range */}}
 
 {{- else if eq (kindOf $c.data) "string" }}
-  {{- tpl $c.name $ }}: |
-{{ (tpl $c.data $) | indent 4 | toString }}
+{{ (tpl (tpl $c.data $) $) | indent 4 | toString }}
 {{- else }}
   DATATYPE: {{ kindOf $c.data }}
 {{- end }} {{/* end if type */}}

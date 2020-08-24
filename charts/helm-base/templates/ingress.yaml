@@ -15,10 +15,13 @@ metadata:
 {{ $commonLabels | indent 4 }}
   annotations:
     kubernetes.io/ingress.class: {{ default $.Values.ingress.class "nginx" }}
-  {{- range $key, $value := $route.annotations }}
-    {{ $key }}: {{ (tpl $value $) | quote }}
-  {{- end }}
-  {{- range $key, $value := $.Values.ingress.annotations }}
+{{- $ingressAnnotations := dict }}
+{{- if $route.annotations }}
+{{- $ingressAnnotations = merge $route.annotations $.Values.ingress.annotations }}
+{{- else }}
+{{- $ingressAnnotations = $.Values.ingress.annotations }}
+{{- end }}
+  {{- range $key, $value := $ingressAnnotations }}
     {{ $key }}: {{ (tpl $value $) | quote }}
   {{- end }}
 
@@ -29,7 +32,7 @@ spec:
         paths:
           - path: {{ $route.path }}
             backend:
-              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}
+              serviceName: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
               servicePort: {{ default $route.port $.Values.ingress.port }}
     {{- if $route.aliases }}
     {{- range $_, $alias := $route.aliases }}
@@ -38,7 +41,7 @@ spec:
         paths:
           - path: {{ $route.path }}
             backend:
-              serviceName: {{if not $route.service}}{{ $defaultServiceName }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}
+              serviceName: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
               servicePort: {{ default $route.port $.Values.ingress.port }}
     {{- end }}
     {{- end }}

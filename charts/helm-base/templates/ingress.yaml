@@ -30,7 +30,7 @@ spec:
     - host: "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
       http:
         paths:
-          - path: {{ $route.path }}
+          - path: {{ tpl $route.path $ }}
             backend:
               serviceName: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
               servicePort: {{ default $route.port $.Values.ingress.port }}
@@ -39,7 +39,7 @@ spec:
     - host: "{{ tpl $alias $ }}"
       http:
         paths:
-          - path: {{ $route.path }}
+          - path: {{ tpl $route.path $ }}
             backend:
               serviceName: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
               servicePort: {{ default $route.port $.Values.ingress.port }}

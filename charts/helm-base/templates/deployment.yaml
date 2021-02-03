@@ -43,6 +43,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
       {{- if .Values.serviceAccount.name }}
       serviceAccount: {{ tpl .Values.serviceAccount.name $ }}
+      serviceAccountName: {{ tpl .Values.serviceAccount.name $ }}
       {{- end }}
 
       {{- if .Values.dnsPolicy }}

@@ -38,20 +38,18 @@ spec:
 
 {{- else -}} {{/* is StatefulSet */}}
 
+{{ range $r, $_ := until ($.Values.replicaCount | int) }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end}}
+  name: {{if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end}}-{{ $r }}
   labels:
 {{ $commonLabels | indent 4 }}
 spec:
   type: {{ default "ClusterIP" $s.type }}
-  {{- if $s.clusterIP }}
-  clusterIP: {{ $s.clusterIP }}
-  {{- end }}
   {{- if eq $s.type "ExternalName" }}
-  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" (tpl $s.externalName $) }}"
+  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
   {{- end }}
   ports:
   {{- range $k, $port := $s.ports }}
@@ -64,6 +62,7 @@ spec:
   selector:
 {{ $selectorLabels | indent 4 }}
 {{ end }}
+{{- end }}
 
 {{- end }}
 {{- end }}

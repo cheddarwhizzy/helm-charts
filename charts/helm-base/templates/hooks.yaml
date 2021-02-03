@@ -52,6 +52,7 @@ spec:
 
       {{- if $h.serviceAccount }}
       serviceAccount: {{ tpl $h.serviceAccount.name $ }}
+      serviceAccountName: {{ tpl $h.serviceAccount.name $ }}
       {{- end}}
       restartPolicy: {{ default "Never" $h.restartPolicy }}
       {{- if $.Values.imagePullSecrets }}

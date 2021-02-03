@@ -138,6 +138,15 @@ containers: []
 #   - name: some-configmap
 #     mountPath: /etc/myapp
 
+lifecycle: {}
+  # postStart:
+  #   exec:
+  #     command: []
+  # preStop:
+  #   exec:
+  #     command: ["/bin/sh","-c","nginx -s quit; while killall -0 nginx; do sleep 1; done"]
+
+
 # Run on lifecycle
 hookvolumes: []
 preHooks: []
@@ -267,3 +276,15 @@ ingress:
   # dnsConfig:
   #   nameservers: []
   #     # - 10.0.0.2
+
+psp:
+  enabled: false
+
+mutatingWebhookConfiguration:
+  enabled: false
+
+validatingWebhookConfiguration:
+  enabled: false
+
+crd:
+  enabled: false

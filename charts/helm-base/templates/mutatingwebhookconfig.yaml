@@ -1,3 +1,4 @@
+{{- if .Values.mutatingWebhookConfiguration.enabled }}
 # apiVersion: admissionregistration.k8s.io/v1beta1
 # kind: MutatingWebhookConfiguration
 # metadata:
@@ -17,3 +18,4 @@
 #   failurePolicy: Fail
 #   sideEffects: None
 #   name: webhook.pipeline.tekton.dev
+{{- end }}

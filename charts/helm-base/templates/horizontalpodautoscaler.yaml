@@ -11,8 +11,8 @@ spec:
     apiVersion: {{ .Values.apiVersion }}
     kind: {{ default "Deployment" .Values.hpa.kind }}
     name: {{ template "helm-base.fullname" . }}
-  maxReplicas: {{ .Values.maxReplicaCount }}
-  minReplicas: {{ .Values.minReplicaCount }}
+  maxReplicas: {{ .Values.hpa.maxReplicaCount }}
+  minReplicas: {{ .Values.hpa.minReplicaCount }}
   metrics:
 {{- if .Values.hpa.metrics }}
 {{ toYaml .Values.hpa.metrics | nindent 2 }}

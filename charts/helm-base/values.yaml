@@ -1,61 +1,17 @@
-# Required 
-serviceName: 
-
-envName: 
 nameOverride: 
 fullnameOverride: 
-
 replicaCount: 1
-minReplicaCount: 1 # adjust according to app scale
-maxReplicaCount: 10 # adjust according to app scale
 apiVersion: apps/v1
 kind: Deployment # or StatefulSet
-serviceAccount:
-  create: false
-  name: default # vault-auth
-  annotations: {}
 
+services: []
+# - name: default
+#   type: ClusterIP # NodePort or ExternalName
+#   ports:
+#   - name: gotty
+#     port: 8080
 
-terminationGracePeriodSeconds: 30
-image:
-  tag: latest
-  # repository: 
-imagePullSecrets: []
-# - name: some-image-pull-secret
-
-envFrom: {} # mount in additional configMap env vars
-# - configMapRef:
-#     name: special-config
-# - secretRef:
-#     name: secret-config
-env: {}
-  # BRANCH: integration
-
-# affinity: |
-#   podAntiAffinity:
-#     requiredDuringSchedulingIgnoredDuringExecution:
-#     - labelSelector:
-#         matchExpressions:
-#         - key: app
-#           operator: In
-#           values:
-#           - {{ .Values.serviceName }}
-#       topologyKey: "kubernetes.io/hostname"
-
-tolerations: []
-nodeSelector: {}
-hostNetwork: false
-commonAnnotations: {}
-  # deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
-
-services:
-# - name: some-service
-#   type: ClusterIP
-#   ports: []
-#   # - name: default
-#   #   port: 8000
-
-# Optional Cronjobs
+# Optional Cronjobs to deploy with service
 # cronjobs: 
 #   image:
 #     tag: latest
@@ -93,12 +49,15 @@ volumes: []
 #           - key: password
 #             path: my-group/my-password
 #             mode: 511
+
+# Config Maps to be mounted as env vars or files in the pods
 configMaps: []
 # - name: some-configmap
 #   data:
 #     config.json: |
 #       {"apiUrl":"https://my.domain.com"}
 
+# Secrets to be mounted as env vars or files in the pods
 secrets: []
   # default:
   #   enabled: true
@@ -113,6 +72,43 @@ secrets: []
   #     secret.test.txt: |-
   #       some text
 
+# Service Account
+serviceAccount:
+  create: false
+  name: default # vault-auth
+  annotations: {}
+
+terminationGracePeriodSeconds: 30
+image:
+  tag: latest
+  # repository: some.registry.com/my-image
+imagePullSecrets: []
+# - name: some-image-pull-secret
+
+envFrom: {} # mount in additional configMap env vars
+# - configMapRef:
+#     name: special-config # or fullname: other-service-configmap
+# - secretRef:
+#     name: secret-config # or fullname: other-service-secrets
+env: {}
+  # BRANCH: integration
+
+# affinity: |
+#   podAntiAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#     - labelSelector:
+#         matchExpressions:
+#         - key: app
+#           operator: In
+#           values:
+#           - {{ .Values.serviceName }}
+#       topologyKey: "kubernetes.io/hostname"
+
+tolerations: []
+nodeSelector: {}
+hostNetwork: false
+commonAnnotations: {}
+  # deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
 progressDeadlineSeconds: 180
 # minReadySeconds: 0
 revisionHistoryLimit: 10
@@ -149,17 +145,18 @@ lifecycle: {}
 
 # Run on lifecycle
 hookvolumes: []
-preHooks: []
+preHooks: [] # Run as a hook, before "hooks" (e.g. Run additional hooks for values-staging.yaml but not QA's values.yaml)
 hooks: []
-postHooks: []
+postHooks: [] # Same as preHooks, but run after "hooks"
 # - name: some-hook
 #   onEvent: pre-install,pre-upgrade
-#   weight: -5
+#   weight: -5 # defaults to index (key) in the list of hooks
 #   kind: Job # or ConfigMap
 #   initContainers: [] # Job Only
 #   containers: [] # Job Only
 #   volumes: [] # applied to job spec
 
+# Role based access control. Requires a serviceaccount
 rbac:
   create: false
   rules: []
@@ -168,15 +165,12 @@ rbac:
   #   verbs: ["*"]
 
 
-cronjobs:
-  jobs: []
-  image:
-    tag: latest
-
 hpa:
   apiVersion: autoscaling/v2beta2
   enabled: false
   kind: Deployment # or 'StatefulSet'
+  minReplicaCount: 1
+  maxReplicaCount: 10
   metrics:
   - type: Resource
     resource:
@@ -213,6 +207,8 @@ networkPolicy:
       - namespaceSelector:
           matchLabels:
             nginx: "true"
+
+
 ingress:
   enabled: false
   secretName: 
@@ -229,6 +225,11 @@ ingress:
     # ingress.kubernetes.io/config-backend: |
     #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
     #   http-request deny if !network_allowed
+  routes: []
+  # - name: default
+  #   host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
+  #   port: 3000
+  #   path: /
 
   # privateIngressRules: |
   #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
@@ -277,14 +278,22 @@ ingress:
   #   nameservers: []
   #     # - 10.0.0.2
 
-psp:
-  enabled: false
+# Not Implemented
+# psp:
+#   enabled: false
 
-mutatingWebhookConfiguration:
-  enabled: false
+# Not Implemented
+# mutatingWebhookConfiguration:
+#   enabled: false
 
-validatingWebhookConfiguration:
-  enabled: false
+# Not Implemented
+# validatingWebhookConfiguration:
+#   enabled: false
 
-crd:
+# Not Implemented
+crds:
   enabled: false
+  # crds:
+  # - name: some-crd
+  #   spec:
+  #   ...

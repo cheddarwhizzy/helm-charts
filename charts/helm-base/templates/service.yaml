@@ -9,6 +9,8 @@
 {{- if eq $.Values.kind "Deployment" }}
 {{ $_ := set $root "s" $s }}
 
+{{ $type := default "ClusterIP" $s.type }}
+
 {{/*- include "helm-base.serviceName" $root */}}
 
 
@@ -20,8 +22,35 @@ metadata:
   labels:
 {{ $commonLabels | indent 4 }}
 spec:
+  type: {{ $type }}
+  {{- if eq $type "ExternalName" }}
+  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
+  {{- end }}
+  ports:
+  {{- range $k, $port := $s.ports }}
+  - port: {{ $port.port }}
+    targetPort: {{ $port.port }}
+    protocol: {{ default "TCP" $s.protocol }}
+    name: "{{ default $port.port $port.name }}"
+  {{- end}}
+{{- if ne $type "ExternalName" }}
+  selector:
+{{ $selectorLabels | indent 4 }}
+{{ end }}
+
+{{- else -}} {{/* is StatefulSet */}}
+
+{{ range $r, $_ := until ($.Values.replicaCount | int) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end}}-{{ $r }}
+  labels:
+{{ $commonLabels | indent 4 }}
+spec:
   type: {{ default "ClusterIP" $s.type }}
-  {{- if eq $s.type "ExternalName" }}
+  {{- if eq $type "ExternalName" }}
   externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
   {{- end }}
   ports:
@@ -31,39 +60,11 @@ spec:
     protocol: {{ default "TCP" $s.protocol }}
     name: "{{ $port.name }}"
   {{- end}}
-{{- if ne $s.type "ExternalName" }}
+{{- if ne $type "ExternalName" }}
   selector:
 {{ $selectorLabels | indent 4 }}
 {{ end }}
-
-{{- else -}} {{/* is StatefulSet */}}
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end}}
-  labels:
-{{ $commonLabels | indent 4 }}
-spec:
-  type: {{ default "ClusterIP" $s.type }}
-  {{- if $s.clusterIP }}
-  clusterIP: {{ $s.clusterIP }}
-  {{- end }}
-  {{- if eq $s.type "ExternalName" }}
-  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" (tpl $s.externalName $) }}"
-  {{- end }}
-  ports:
-  {{- range $k, $port := $s.ports }}
-  - port: {{ $port.port }}
-    targetPort: {{ $port.port }}
-    protocol: {{ default "TCP" $s.protocol }}
-    name: "{{ $port.name }}"
-  {{- end}}
-{{- if ne $s.type "ExternalName" }}
-  selector:
-{{ $selectorLabels | indent 4 }}
-{{ end }}
+{{- end }}
 
 {{- end }}
 {{- end }}

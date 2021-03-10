@@ -1,7 +1,6 @@
 redis-cluster:
   kind: StatefulSet
   replicaCount: 9 # multiples of 3
-  serviceName: redis-cluster
 
   redisPassword: "newredispass"
   storageClassName: gp2-us-east-1c

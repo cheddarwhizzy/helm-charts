@@ -2,8 +2,6 @@ helm-base:
 
   replicaCount: 1
 
-  serviceName: my-service
-
   services:
   - name: default
     type: ClusterIP

@@ -3,7 +3,7 @@
 Expand the name of the chart.
 */}}
 {{- define "helm-base.name" -}}
-{{- default $.Chart.Name $.Values.serviceName | trunc 63 | trimSuffix "-" -}}
+{{- default $.Release.Name $.Values.serviceName | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
@@ -30,12 +30,12 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 
 {{- define "helm-base.commonLabels" -}}
-app: {{ $.Values.serviceName }}
+app: {{ include "helm-base.name" . }}
 release: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "helm-base.selectorLabels" -}}
-app: {{ $.Values.serviceName }}
+app: {{ include "helm-base.name" . }}
 release: {{ .Release.Name }}
 {{ end }}
 
@@ -89,7 +89,7 @@ volumes:
 {{- else if $vol.configMap }}
 - name: {{ $vol.name }}
   configMap:
-    name: {{ $name }}-{{ $vol.configMap.name }}
+    name: {{ if $vol.configMap.fullname }}{{ $vol.configMap.fullname }}{{else}}{{ $name }}-{{ $vol.configMap.name }}{{end}}
     {{- if $vol.configMap.defaultMode }}
     defaultMode: {{ $vol.configMap.defaultMode }}
     {{- end }}
@@ -97,7 +97,7 @@ volumes:
 {{- else if $vol.secret }}
 - name: {{ $vol.name }}
   secret:
-    secretName: {{ if $vol.secret.secretFullname }}{{ $vol.secret.secretFullname }}{{else}}{{ $name }}-{{ $vol.secret.secretName }}{{end}}
+    secretName: {{ if $vol.secret.fullname }}{{ $vol.secret.fullname }}{{else}}{{ $name }}-{{ $vol.secret.secretName }}{{end}}
 {{- else if $vol.nfs }}
 - name: {{ $vol.name }}
   nfs:
@@ -107,6 +107,10 @@ volumes:
 - name: {{ $vol.name }}
   hostPath:
     path: {{ $vol.hostPath.path }}
+{{- else if $vol.persistentVolumeClaim }}
+- name: {{ $vol.name }}
+  persistentVolumeClaim:
+    claimName: {{ $vol.persistentVolumeClaim.claimName }}
 {{- else }}
 {{- end -}}
 {{- end -}}
@@ -288,10 +292,10 @@ containers:
 {{- if $.waitFor -}}
 {{- if $.waitFor.port }}
   livenessProbe:
-    failureThreshold: 3
-    initialDelaySeconds: 60
-    periodSeconds: 10
-    successThreshold: 1
+    failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
+    initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
+    periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
+    successThreshold: {{ default 1 $.waitFor.successThreshold }}
     tcpSocket:
       port: {{ $.waitFor.port }}
     timeoutSeconds: 1
@@ -309,14 +313,16 @@ containers:
     exec:
       command:
 {{ toYaml $.waitFor.command | indent 6 }}
-    initialDelaySeconds: 5
-    periodSeconds: 5
+    initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
+    periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
+    timeoutSeconds: {{ default 5 $.waitFor.timeoutSeconds }}
   readinessProbe:
     exec:
       command:
 {{ toYaml $.waitFor.command | indent 6 }}
-    initialDelaySeconds: 5
-    periodSeconds: 5
+    initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
+    periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
+    timeoutSeconds: {{ default 5 $.waitFor.timeoutSeconds }}
 {{- end }} {{/* End .command */}}
 {{- end }} {{/* End .waitFor.port */}}
 {{- end }} {{/* End .waitFor */}}
@@ -334,9 +340,15 @@ containers:
 {{- if $.ports }}
   ports:
 {{- range $k, $v := $.ports }}
+{{- if eq (kindOf $v) "map" }}
   - name: {{ $v.name }}
     containerPort: {{ $v.port }}
     protocol: {{ default "TCP" $v.protocol }}
+{{- else }}
+  - name: {{ printf "%s-%s" $name ($k | toString) }}
+    containerPort: {{ $v }}
+    protocol: "TCP"
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -351,6 +363,18 @@ containers:
 {{- define "helm-base.commonAnnotations" }}
 {{- if .Values.commonAnnotations }}
 {{- with .Values.commonAnnotations }}
+{{- range $k, $v := . }}
+{{- $val := dict $k (tpl $v $) }}
+{{ toYaml $val }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+
+{{- define "helm-base.podAnnotations" }}
+{{- if .Values.podAnnotations }}
+{{- with .Values.podAnnotations }}
 {{- range $k, $v := . }}
 {{- $val := dict $k (tpl $v $) }}
 {{ toYaml $val }}

@@ -19,6 +19,8 @@ metadata:
 {{ $commonLabels | indent 4 }}
   annotations:
 {{ $commonAnnotations | indent 4 }}
+
+{{- if $c.data }}
 data:
 
 {{- if eq (kindOf $c.data) "map" }}
@@ -37,5 +39,13 @@ data:
 {{- else }}
   DATATYPE: {{ kindOf $c.data }}
 {{- end }} {{/* end if type */}}
+{{- end }} {{/* end if c.data */}}
+
+
+{{- if $c.binaryData }}
+binaryData:
+{{- toYaml $c.binaryData | nindent 2 }}
+{{- end }}
+
 {{- end }} {{/* end range c */}}
 

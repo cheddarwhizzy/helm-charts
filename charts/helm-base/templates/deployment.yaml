@@ -4,6 +4,7 @@
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $volumes := include "helm-base.volumes" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
+{{- $podAnnotations := include "helm-base.podAnnotations" . }}
 
 apiVersion: {{ .Values.apiVersion }}
 kind: Deployment 
@@ -33,9 +34,10 @@ spec:
       labels:
 {{ $selectorLabels | indent 8 }}
   
-  {{- if $.Values.commonAnnotations }}
+  {{- if or ($commonAnnotations) ($.Values.podAnnotations) }}
       annotations:
 {{- $commonAnnotations | indent 8 }}
+{{- $podAnnotations | indent 8 }}
   {{- end }}
 
     spec:

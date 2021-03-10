@@ -9,6 +9,8 @@
 {{- if eq $.Values.kind "Deployment" }}
 {{ $_ := set $root "s" $s }}
 
+{{ $type := default "ClusterIP" $s.type }}
+
 {{/*- include "helm-base.serviceName" $root */}}
 
 
@@ -20,8 +22,8 @@ metadata:
   labels:
 {{ $commonLabels | indent 4 }}
 spec:
-  type: {{ default "ClusterIP" $s.type }}
-  {{- if eq $s.type "ExternalName" }}
+  type: {{ $type }}
+  {{- if eq $type "ExternalName" }}
   externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
   {{- end }}
   ports:
@@ -29,9 +31,9 @@ spec:
   - port: {{ $port.port }}
     targetPort: {{ $port.port }}
     protocol: {{ default "TCP" $s.protocol }}
-    name: "{{ $port.name }}"
+    name: "{{ default $port.port $port.name }}"
   {{- end}}
-{{- if ne $s.type "ExternalName" }}
+{{- if ne $type "ExternalName" }}
   selector:
 {{ $selectorLabels | indent 4 }}
 {{ end }}
@@ -48,7 +50,7 @@ metadata:
 {{ $commonLabels | indent 4 }}
 spec:
   type: {{ default "ClusterIP" $s.type }}
-  {{- if eq $s.type "ExternalName" }}
+  {{- if eq $type "ExternalName" }}
   externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
   {{- end }}
   ports:
@@ -58,7 +60,7 @@ spec:
     protocol: {{ default "TCP" $s.protocol }}
     name: "{{ $port.name }}"
   {{- end}}
-{{- if ne $s.type "ExternalName" }}
+{{- if ne $type "ExternalName" }}
   selector:
 {{ $selectorLabels | indent 4 }}
 {{ end }}

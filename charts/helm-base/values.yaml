@@ -12,11 +12,11 @@ services: []
 #     port: 8080
 
 # Optional Cronjobs to deploy with service
-# cronjobs: 
-#   image:
+cronjobs: 
+  image: {}
 #     tag: latest
 #     repository: account-service
-#   jobs:
+  jobs: []
 #     - name: cache-buyside-user-responsiveness
 #       schedule: '0 19 * * *'
 #       command: 
@@ -230,7 +230,7 @@ ingress:
   #   host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
   #   port: 3000
   #   path: /
-
+  tls: false
   # privateIngressRules: |
   #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
   #   http-request deny if !network_allowed
@@ -279,16 +279,16 @@ ingress:
   #     # - 10.0.0.2
 
 # Not Implemented
-# psp:
-#   enabled: false
+psp:
+  enabled: false
 
 # Not Implemented
-# mutatingWebhookConfiguration:
-#   enabled: false
+mutatingWebhookConfiguration:
+  enabled: false
 
 # Not Implemented
-# validatingWebhookConfiguration:
-#   enabled: false
+validatingWebhookConfiguration:
+  enabled: false
 
 # Not Implemented
 crds:

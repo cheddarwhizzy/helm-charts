@@ -1,0 +1,16 @@
+
+{{- if and (.Values.storageclass.provisioner) (.Values.storageclass.create) }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: {{ default "false" (.Values.storageclass.isDefault | quote) }}
+  name: {{ template "helm-base.storageClassName" . }}
+{{- if .Values.storageclass.parameters }}
+parameters:
+{{- toYaml .Values.storageclass.parameters | nindent 2 }}
+{{- end }}
+provisioner: {{ .Values.storageclass.provisioner }}
+reclaimPolicy: {{ default "Delete" .Values.storageclass.reclaimPolicy }}
+volumeBindingMode: {{ default "Immediate" .Values.storageclass.volumeBindingMode }}
+{{- end }}

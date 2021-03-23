@@ -4,7 +4,6 @@
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $name := include "helm-base.fullname" . }}
 {{- range $k, $s := .Values.services }}
-{{- if $s.ports -}}
 
 {{- if eq $.Values.kind "Deployment" }}
 {{ $_ := set $root "s" $s }}
@@ -26,6 +25,7 @@ spec:
   {{- if eq $type "ExternalName" }}
   externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
   {{- end }}
+{{- if and (ne $type "ExternalName") ($s.ports) }}
   ports:
   {{- range $k, $port := $s.ports }}
   - port: {{ $port.port }}
@@ -33,7 +33,6 @@ spec:
     protocol: {{ default "TCP" $s.protocol }}
     name: "{{ default $port.port $port.name }}"
   {{- end}}
-{{- if ne $type "ExternalName" }}
   selector:
 {{ $selectorLabels | indent 4 }}
 {{ end }}
@@ -53,6 +52,7 @@ spec:
   {{- if eq $type "ExternalName" }}
   externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
   {{- end }}
+{{- if and (ne $type "ExternalName") ($s.ports) }}
   ports:
   {{- range $k, $port := $s.ports }}
   - port: {{ $port.port }}
@@ -60,7 +60,6 @@ spec:
     protocol: {{ default "TCP" $s.protocol }}
     name: "{{ $port.name }}"
   {{- end}}
-{{- if ne $type "ExternalName" }}
   selector:
 {{ $selectorLabels | indent 4 }}
 {{ end }}
@@ -68,10 +67,5 @@ spec:
 
 {{- end }}
 {{- end }}
-{{- end }}
-
-
-
-
 
 {{- end }}

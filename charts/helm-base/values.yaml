@@ -75,7 +75,7 @@ secrets: []
 # Service Account
 serviceAccount:
   create: false
-  name: default # vault-auth
+  # name: default # vault-auth
   annotations: {}
 
 terminationGracePeriodSeconds: 30
@@ -118,6 +118,11 @@ strategy:
   maxSurge: 
 
 
+storageclass:
+  create: false
+  provisioner: ""
+  name: ""
+
 initContainers: []
 containers: []
 # - name: some-thing
@@ -159,6 +164,7 @@ postHooks: [] # Same as preHooks, but run after "hooks"
 # Role based access control. Requires a serviceaccount
 rbac:
   create: false
+  type: "" # default Role or "cluster" for ClusterRole
   rules: []
   # - apiGroups: [""]
   #   resources: ["pods", "pods/exec", "pods/log"]

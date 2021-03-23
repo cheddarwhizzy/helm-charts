@@ -50,10 +50,9 @@ spec:
 {{ toYaml $h.hostAliases | indent 8}}
       {{- end }}
 
-      {{- if $h.serviceAccount }}
-      serviceAccount: {{ tpl $h.serviceAccount.name $ }}
-      serviceAccountName: {{ tpl $h.serviceAccount.name $ }}
-      {{- end}}
+      serviceAccount: {{ include "helm-base.serviceAccountName" . }}
+      serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
+      
       restartPolicy: {{ default "Never" $h.restartPolicy }}
       {{- if $.Values.imagePullSecrets }}
       imagePullSecrets:

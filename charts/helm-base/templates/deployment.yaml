@@ -43,10 +43,8 @@ spec:
     spec:
       hostNetwork: {{ .Values.hostNetwork }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
-      {{- if .Values.serviceAccount.name }}
-      serviceAccount: {{ tpl .Values.serviceAccount.name $ }}
-      serviceAccountName: {{ tpl .Values.serviceAccount.name $ }}
-      {{- end }}
+      serviceAccount: {{ include "helm-base.serviceAccountName" . }}
+      serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
 
       {{- if .Values.dnsPolicy }}
       dnsPolicy: {{ .Values.dnsPolicy }}

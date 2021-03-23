@@ -1,4 +1,4 @@
 apiVersion: v1
 description: Base helm chart
 name: helm-base
-version: 0.1.14
+version: 0.1.15

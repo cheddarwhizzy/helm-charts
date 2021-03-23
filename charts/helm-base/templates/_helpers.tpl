@@ -396,8 +396,16 @@ deny all;
 
 {{- define "helm-base.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create -}}
-    {{ default (include "helm-base.fullname" .) (tpl .Values.serviceAccount.name $) }}
+{{- if .Values.serviceAccount.name }}
+{{- tpl .Values.serviceAccount.name $ }}
 {{- else -}}
-    {{ default "default" (tpl .Values.serviceAccount.name $) }}
+{{- include "helm-base.fullname" . }}
+{{- end }}
+{{- else -}}
+"default"
+{{- end }}
 {{- end -}}
-{{- end -}}
+
+{{- define "helm-base.storageClassName" }}
+{{- default (include "helm-base.fullname" .) (.Values.storageclass.name) }}
+{{- end }}

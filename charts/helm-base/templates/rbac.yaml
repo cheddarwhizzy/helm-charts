@@ -5,9 +5,10 @@
 {{- $volumes := include "helm-base.volumes" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
 {{- $serviceName := include "helm-base.fullname" . }}
+{{- $prefix := $.Values.rbac.type }}
 
 apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
+kind: {{$prefix}}Role
 metadata:
   name: {{ $serviceName }}
   labels:
@@ -17,14 +18,14 @@ rules:
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: {{$prefix}}RoleBinding
 metadata:
   name: {{ $serviceName }}
   labels:
 {{ $selectorLabels | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: Role
+  kind: {{$prefix}}Role
   name: {{ $serviceName }}
 subjects:
 - kind: ServiceAccount

@@ -23,13 +23,13 @@ metadata:
 spec:
   type: {{ $type }}
   {{- if eq $type "ExternalName" }}
-  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
+  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" (tpl $s.externalName $) }}"
   {{- end }}
 {{- if and (ne $type "ExternalName") ($s.ports) }}
   ports:
   {{- range $k, $port := $s.ports }}
   - port: {{ $port.port }}
-    targetPort: {{ $port.port }}
+    targetPort: {{ default $port.port $port.targetPort }}
     protocol: {{ default "TCP" $s.protocol }}
     name: "{{ default $port.port $port.name }}"
   {{- end}}
@@ -50,13 +50,13 @@ metadata:
 spec:
   type: {{ default "ClusterIP" $s.type }}
   {{- if eq $type "ExternalName" }}
-  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" $s.externalName }}"
+  externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" (tpl $s.externalName $) }}"
   {{- end }}
 {{- if and (ne $type "ExternalName") ($s.ports) }}
   ports:
   {{- range $k, $port := $s.ports }}
   - port: {{ $port.port }}
-    targetPort: {{ $port.port }}
+    targetPort: {{ default $port.port $port.targetPort }}
     protocol: {{ default "TCP" $s.protocol }}
     name: "{{ $port.name }}"
   {{- end}}

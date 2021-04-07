@@ -45,7 +45,7 @@ spec:
               servicePort: {{ default $route.port $.Values.ingress.port }}
     {{- end }}
     {{- end }}
-  {{- if $root.Values.tls }}
+  {{- if $root.Values.ingress.tls }}
   {{- $secretName := coalesce $route.secretName $root.Values.ingress.secretName (printf "%s-tls" $name) }}
   tls:
     - secretName: {{ $secretName }}

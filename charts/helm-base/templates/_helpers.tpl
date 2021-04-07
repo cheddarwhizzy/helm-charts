@@ -361,6 +361,12 @@ containers:
 
 
 {{- define "helm-base.commonAnnotations" }}
+{{- if .Values.configMaps }}
+checksum/config: {{ .Values.configMaps | toString | sha256sum }}
+{{- end }}
+{{- if .Values.secrets }}
+checksum/secrets: {{ .Values.secrets | toString | sha256sum }}
+{{- end }}
 {{- if .Values.commonAnnotations }}
 {{- with .Values.commonAnnotations }}
 {{- range $k, $v := . }}

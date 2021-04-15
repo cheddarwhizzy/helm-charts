@@ -3,10 +3,11 @@
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $name := include "helm-base.fullname" . }}
-{{- range $k, $s := .Values.services }}
+{{- range $k, $s := $root.Values.services }}
 {{ $type := default "ClusterIP" $s.type }}
 
 {{ $_ := set $root "s" $s }}
+---
 apiVersion: v1
 kind: Service
 metadata:

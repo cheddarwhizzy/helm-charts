@@ -15,7 +15,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
-{{- $name := default .Release.Name .Values.nameOverride -}}
+{{- $name := default .Chart.Name .Values.nameOverride -}}
 {{- if contains $name .Release.Name -}}
 {{- .Release.Name | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -31,12 +31,12 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 
 {{- define "helm-base.commonLabels" -}}
 app: {{ include "helm-base.name" . }}
-release: {{ .Release.Name }}
+release: {{ .Chart.Name }}
 {{- end -}}
 
 {{- define "helm-base.selectorLabels" -}}
 app: {{ include "helm-base.name" . }}
-release: {{ .Release.Name }}
+release: {{ .Chart.Name }}
 {{ end }}
 
 {{/*
@@ -202,10 +202,15 @@ containers:
 {{- define "helm-base.containerBase" -}}
 {{- $name := include "helm-base.fullname" $ -}}
 
+{{- $tag := "" }}
+{{- if not $.image }}
+{{- $tag = printf ":%s" (coalesce $.Values.image.tag $.Values.global.image.tag) }}
+{{- end }}
+
 
 - name: {{ tpl $.name $ }}
-  image: "{{ tpl (tpl $.image $) $ }}"
-  imagePullPolicy: {{ default "Always" $.imagePullPolicy }}
+  image: "{{ tpl (tpl (coalesce $.image $.Values.image.repository $.Values.global.image.repository) $) $ }}{{ $tag }}"
+  imagePullPolicy: {{ coalesce $.imagePullPolicy $.Values.global.imagePullPolicy "Always" }}
 {{- if $.command }}  
   command: 
 {{- $new := list }}
@@ -361,12 +366,6 @@ containers:
 
 
 {{- define "helm-base.commonAnnotations" }}
-{{- if .Values.configMaps }}
-checksum/config: {{ .Values.configMaps | toString | sha256sum }}
-{{- end }}
-{{- if .Values.secrets }}
-checksum/secrets: {{ .Values.secrets | toString | sha256sum }}
-{{- end }}
 {{- if .Values.commonAnnotations }}
 {{- with .Values.commonAnnotations }}
 {{- range $k, $v := . }}
@@ -379,6 +378,12 @@ checksum/secrets: {{ .Values.secrets | toString | sha256sum }}
 
 
 {{- define "helm-base.podAnnotations" }}
+{{- if (concat .Values.configMaps .Values.global.configMaps) }}
+checksum/config: {{ (concat .Values.configMaps .Values.global.configMaps) | toString | sha256sum }}
+{{- end }}
+{{- if (concat .Values.secrets .Values.global.secrets) }}
+checksum/secrets: {{ (concat .Values.secrets .Values.global.secrets) | toString | sha256sum }}
+{{- end }}
 {{- if .Values.podAnnotations }}
 {{- with .Values.podAnnotations }}
 {{- range $k, $v := . }}
@@ -415,3 +420,36 @@ deny all;
 {{- define "helm-base.storageClassName" }}
 {{- default (include "helm-base.fullname" .) (.Values.storageclass.name) }}
 {{- end }}
+
+
+{{- define "helm-base.imagePullSecrets" -}}
+{{- if or .Values.imagePullSecrets .Values.global.imagePullSecrets }}
+{{- $pullSecrets := concat .Values.imagePullSecrets .Values.global.imagePullSecrets }}
+imagePullSecrets:
+{{- range $_, $ips := $pullSecrets }}
+- name: {{ $ips }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{- define "helm-base.serviceAccount" -}}
+serviceAccount: {{ include "helm-base.serviceAccountName" . }}
+serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
+{{- end -}}
+
+{{- define "helm-base.dns" -}}
+{{- if or .Values.dnsPolicy .Values.global.dnsPolicy }}
+dnsPolicy: {{ coalesce .Values.dnsPolicy .Values.global.dnsPolicy }}
+{{- end }}
+{{- if or .Values.dnsConfig .Values.global.dnsConfig }}
+dnsConfig: 
+{{- toYaml (coalesce .Values.dnsConfig .Values.global.dnsConfig) | nindent 2 }}
+{{- end }}
+{{- end -}}
+
+{{- define "helm-base.hostAliases" -}}
+{{- if .Values.hostAliases }}
+hostAliases:
+{{ toYaml .Values.hostAliases | indent 8}}
+{{- end }}
+{{- end -}}

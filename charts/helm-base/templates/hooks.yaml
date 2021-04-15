@@ -49,17 +49,12 @@ spec:
       hostAliases:
 {{ toYaml $h.hostAliases | indent 8}}
       {{- end }}
-
-      serviceAccount: {{ include "helm-base.serviceAccountName" . }}
-      serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
       
       restartPolicy: {{ default "Never" $h.restartPolicy }}
-      {{- if $.Values.imagePullSecrets }}
-      imagePullSecrets:
-      {{- range $_, $s := $.Values.imagePullSecrets }}
-      - name: "{{ $s }}"
-      {{- end }}
-      {{- end }}
+
+{{ include "helm-base.serviceAccount" . | indent 6 }}
+
+{{ include "helm-base.imagePullSecrets" . | indent 6 }}
 
 {{- if $h.initContainers }}
       initContainers:

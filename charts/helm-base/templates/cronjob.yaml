@@ -30,15 +30,13 @@ spec:
           restartPolicy: OnFailure
           terminationGracePeriodSeconds: 30
 
-          serviceAccount: {{ include "helm-base.serviceAccountName" . }}
-          serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
+{{ include "helm-base.hostAliases" . | indent 6 }}
 
-          {{- if $.Values.imagePullSecrets }}
-          imagePullSecrets:
-          {{- range $_, $s := $.Values.imagePullSecrets }}
-          - name: "{{ $s }}"
-          {{- end }}
-          {{- end }}
+{{ include "helm-base.dns" . | indent 6 }}
+
+{{ include "helm-base.serviceAccount" . | indent 6 }}
+
+{{ include "helm-base.imagePullSecrets" . | indent 6 }}
 
           containers:
           - name: {{ $job.name }}

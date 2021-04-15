@@ -9,7 +9,7 @@
 {{ end }}
 
 
-{{- range $c := .Values.configMaps }}
+{{- range $c := (concat .Values.configMaps .Values.global.configMaps) }}
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -1,3 +1,13 @@
+global:
+  imagePullSecrets: []
+  image:
+    # repository: ""
+    tag: latest
+  configMaps: []
+  secrets: []
+  # dnsPolicy: "None"
+  # dnsConfig: {}
+
 nameOverride: 
 fullnameOverride: 
 replicaCount: 1
@@ -10,6 +20,9 @@ services: []
 #   ports:
 #   - name: gotty
 #     port: 8080
+
+statefulSet: {}
+  # updateStrategy: OnDelete
 
 # Optional Cronjobs to deploy with service
 cronjobs: 
@@ -280,9 +293,17 @@ ingress:
   #   # annotations:
   #   port: 4000
 
+  # dnsPolicy: "None"
   # dnsConfig:
   #   nameservers: []
-  #     # - 10.0.0.2
+  #     # - 1.2.3.4
+  #   searches: []
+  #     # - ns1.svc.cluster-domain.example
+  #     # - my.dns.search.suffix
+  #   options: []
+  #     # - name: ndots
+  #     #   value: "2"
+  #     # - name: edns0
 
 # Not Implemented
 psp:

@@ -14,7 +14,8 @@ spec:
     type: {{ default "RollingUpdate" .Values.statefulSet.updateStrategy }}
   selector:
     matchLabels:
-      app: {{ include "helm-base.fullname" . }}
+{{ $selectorLabels | indent 6 }}
+
   serviceName: {{ default (include "helm-base.fullname" .) .Values.statefulSet.serviceName }}
   replicas: {{ .Values.replicaCount }}
   template:
@@ -25,28 +26,14 @@ spec:
 {{ $commonAnnotations | indent 8 }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
-      serviceAccount: {{ include "helm-base.serviceAccountName" . }}
-      serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
 
-      {{- if .Values.dnsPolicy }}
-      dnsPolicy: {{ .Values.dnsPolicy }}
-      {{- end }}
-      {{- if .Values.dnsConfig }}
-      dnsConfig: 
-{{- toYaml .Values.dnsConfig | nindent 8 }}
-      {{- end }}
+{{ include "helm-base.hostAliases" . | indent 6 }}
 
-      {{- if .Values.hostAliases }}
-      hostAliases:
-{{ toYaml .Values.hostAliases | indent 8}}
-      {{- end }}
+{{ include "helm-base.dns" . | indent 6 }}
 
-      {{- if .Values.imagePullSecrets }}
-      imagePullSecrets:
-      {{- range $_, $ips := .Values.imagePullSecrets }}
-      - name: {{ $ips }}
-      {{- end }}
-      {{- end }}
+{{ include "helm-base.serviceAccount" . | indent 6 }}
+
+{{ include "helm-base.imagePullSecrets" . | indent 6 }}
 
 {{- if .Values.initContainers }}
       initContainers:
@@ -90,8 +77,9 @@ spec:
     {{- end }}
 
 
+{{- if .Values.volumeClaimTemplates }}
   volumeClaimTemplates:
 {{ tpl (toYaml .Values.volumeClaimTemplates) $ | nindent 4 }}
 {{- end }}
 
-
+{{- end }}

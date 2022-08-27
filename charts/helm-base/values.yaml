@@ -85,6 +85,19 @@ secrets: []
   #     secret.test.txt: |-
   #       some text
 
+secretStore:
+  create: false # use default
+  # fullname: aws-parameter-store # default ClusterSecretStore 
+  # name: parameter-store
+  service: ParameterStore
+  region: us-west-2
+
+externalSecrets: []
+# - name: auth # Kubernetes Secret name to be created
+#   data:
+#     key: auth # key to be created in secret
+#     value: calpass-rds-db-endpoint-dev # ssm-parameter value to be stored as value of key
+
 # Service Account
 serviceAccount:
   create: false

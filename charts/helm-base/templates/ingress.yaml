@@ -7,14 +7,13 @@
 {{if $firstService.fullname}}{{$defaultServiceName = $firstService.fullname}}{{end}}
 {{- range $route := $.Values.ingress.routes }}
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $name }}-{{ tpl $route.name $ }}
   labels:
 {{ $commonLabels | indent 4 }}
   annotations:
-    kubernetes.io/ingress.class: {{ default $.Values.ingress.class "nginx" }}
 {{- $ingressAnnotations := dict }}
 {{- if $route.annotations }}
 {{- $ingressAnnotations = merge $route.annotations $.Values.ingress.annotations }}
@@ -26,23 +25,30 @@ metadata:
   {{- end }}
 
 spec:
+  ingressClassName: {{ default "nginx" $.Values.ingress.class }}
   rules:
     - host: "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
       http:
         paths:
           - path: {{ tpl $route.path $ }}
+            pathType: {{ default "Prefix" $route.pathType }}
             backend:
-              serviceName: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
-              servicePort: {{ default $route.port $.Values.ingress.port }}
+              service:
+                name: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+                port: 
+                  number: {{ default $.Values.ingress.port $route.port }}
     {{- if $route.aliases }}
     {{- range $_, $alias := $route.aliases }}
     - host: "{{ tpl $alias $ }}"
       http:
         paths:
           - path: {{ tpl $route.path $ }}
+            pathType: {{ default "Prefix" $route.pathType }}
             backend:
-              serviceName: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
-              servicePort: {{ default $route.port $.Values.ingress.port }}
+              service:
+                name: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+                port: 
+                  number: {{ default $.Values.ingress.port $route.port }}
     {{- end }}
     {{- end }}
   {{- if $root.Values.ingress.tls }}

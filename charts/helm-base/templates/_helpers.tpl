@@ -350,7 +350,7 @@ containers:
     containerPort: {{ $v.port }}
     protocol: {{ default "TCP" $v.protocol }}
 {{- else }}
-  - name: {{ printf "%s-%s" $name ($k | toString) }}
+  - name: {{ printf "p-%s" ($k | toString) }}
     containerPort: {{ $v }}
     protocol: "TCP"
 {{- end }}
@@ -384,6 +384,7 @@ checksum/config: {{ (concat .Values.configMaps .Values.global.configMaps) | toSt
 {{- if (concat .Values.secrets .Values.global.secrets) }}
 checksum/secrets: {{ (concat .Values.secrets .Values.global.secrets) | toString | sha256sum }}
 {{- end }}
+deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
 {{- if .Values.podAnnotations }}
 {{- with .Values.podAnnotations }}
 {{- range $k, $v := . }}

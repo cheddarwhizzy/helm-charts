@@ -2,6 +2,14 @@ apiVersion: v1
 entries:
   helm-base:
   - apiVersion: v1
+    created: "2022-08-27T03:00:05.359255-07:00"
+    description: Chart used to easily create Kubernetes services with minimal boilerplate
+    digest: 0d97babc8f5934c873bed082c62fc37e7e03be9c10a71ab8ad44de6d22656294
+    name: helm-base
+    urls:
+    - https://github.com/cheddarwhizzy/helm-charts/releases/download/helm-base-0.1.16/helm-base-0.1.16.tgz
+    version: 0.1.16
+  - apiVersion: v1
     created: "2020-07-10T12:22:17.603835-06:00"
     description: Base helm chart
     digest: db43f0a8b8ec8082eda425c27912fd9705484a91e0a1ad19a13a52c2d6725501

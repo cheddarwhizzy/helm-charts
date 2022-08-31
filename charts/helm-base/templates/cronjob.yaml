@@ -63,13 +63,14 @@ spec:
           tolerations:
             {{- toYaml . | nindent 8 }}
         {{- end }}
-        
-{{- include "helm-base.volumeMounts" . | nindent 10 }}
+
+{{- include "helm-base.volumeMounts" . | nindent 12 }}
+
+{{- $volumes | nindent 10 }}
 
   schedule: "{{ $job.schedule }}"
   successfulJobsHistoryLimit: 3
   suspend: false
-{{- $volumes | indent 2 }}
 
   {{- end }}
   {{- end -}}

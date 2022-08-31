@@ -1,5 +1,7 @@
 {{- $name := include "helm-base.fullname" . }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $volumes := include "helm-base.volumes" . }}
+
 {{- $extraAnnotations := include "helm-base.commonAnnotations" . }}
 {{- if .Values.cronjobs.jobs -}}
 {{- range $key, $job := .Values.cronjobs.jobs }}
@@ -61,11 +63,13 @@ spec:
           tolerations:
             {{- toYaml . | nindent 8 }}
         {{- end }}
-
+        
+{{- include "helm-base.volumeMounts" . | nindent 10 }}
 
   schedule: "{{ $job.schedule }}"
   successfulJobsHistoryLimit: 3
   suspend: false
+{{- $volumes | indent 2 }}
 
   {{- end }}
   {{- end -}}

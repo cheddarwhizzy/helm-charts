@@ -423,7 +423,7 @@ deny all;
 {{- end }}
 
 
-{{- define "helm-base.imagePullSecrets" -}}
+{{- define "helm-base.imagePullSecrets" }}
 {{- if or .Values.imagePullSecrets .Values.global.imagePullSecrets }}
 {{- $pullSecrets := concat .Values.imagePullSecrets .Values.global.imagePullSecrets }}
 imagePullSecrets:
@@ -449,8 +449,8 @@ dnsConfig:
 {{- end -}}
 
 {{- define "helm-base.hostAliases" -}}
-{{- if .Values.hostAliases }}
+{{- if or $.Values.hostAliases $.Values.global.hostAliases }}
 hostAliases:
-{{ toYaml .Values.hostAliases | indent 8}}
+{{- toYaml $.Values.hostAliases | indent 8}}
 {{- end }}
 {{- end -}}

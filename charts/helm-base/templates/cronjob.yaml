@@ -29,15 +29,10 @@ spec:
         spec:
           restartPolicy: OnFailure
           terminationGracePeriodSeconds: 30
-
-{{ include "helm-base.hostAliases" . | indent 6 }}
-
-{{ include "helm-base.dns" . | indent 6 }}
-
-{{ include "helm-base.serviceAccount" . | indent 6 }}
-
-{{ include "helm-base.imagePullSecrets" . | indent 6 }}
-
+{{- include "helm-base.hostAliases" $ | nindent 10 }}
+{{- include "helm-base.dns" $ | nindent 10 }}
+{{- include "helm-base.serviceAccount" $ | nindent 10 }}
+{{- include "helm-base.imagePullSecrets" $ | indent 10 }}
           containers:
           - name: {{ $job.name }}
             image: {{if $job.image }}{{ tpl $job.image $ }}{{else}}{{ tpl $.Values.cronjobs.image $ }}{{end}}

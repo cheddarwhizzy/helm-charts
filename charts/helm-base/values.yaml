@@ -133,6 +133,7 @@ env: {}
 tolerations: []
 nodeSelector: {}
 hostNetwork: false
+hostAliases: []
 commonAnnotations: {}
   # deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
 progressDeadlineSeconds: 180
@@ -262,6 +263,7 @@ ingress:
   #   host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
   #   port: 3000
   #   path: /
+  aliases: []
   tls: false
   # privateIngressRules: |
   #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85

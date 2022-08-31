@@ -37,8 +37,8 @@ spec:
                 name: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
                 port: 
                   number: {{ default $.Values.ingress.port $route.port }}
-    {{- if $route.aliases }}
-    {{- range $_, $alias := $route.aliases }}
+    {{- if or $route.aliases $.Values.ingress.aliases }}
+    {{- range $_, $alias := (concat (default list $route.aliases) $.Values.ingress.aliases) }}
     - host: "{{ tpl $alias $ }}"
       http:
         paths:

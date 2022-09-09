@@ -1,3 +1,3 @@
-.deploy
+.cr-release-packages
 requirements.lock
 *.tgz

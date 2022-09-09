@@ -21,6 +21,68 @@ services: []
 #   - name: gotty
 #     port: 8080
 
+applications: {}
+  # global:
+  #   # namespace: 
+  #   image:
+  #     repository: <image>
+  #   repoURL: https://cheddarwhizzy.github.io/helm-charts
+  #   targetRevision: 0.1.17-beta2
+  #   chart: helm-base
+  #   config: |
+  #     fullnameOverride: restake
+  #     replicaCount: 1
+  #     services:
+  #     - name: ui
+  #       type: ClusterIP
+  #       ports:
+  #       - name: restake
+  #         port: 80
+  #     ingress:
+  #       enabled: true
+  #       tls: true
+  #       domain: <domain>
+  #       subdomain: restake
+  #       annotations:
+  #         cert-manager.io/cluster-issuer: letsencrypt-prod
+  #         nginx.ingress.kubernetes.io/limit-rps: "5"
+  #         nginx.ingress.kubernetes.io/limit-rpm: "200"
+  #       routes:
+  #       - name: ui
+  #         host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
+  #         port: 80
+  #         path: /
+  #     volumes:
+  #     - name: src
+  #       emptyDir: {}
+  #     - name: env-file
+  #       secret:
+  #         secretName: env-file
+  #     secrets:
+  #     - name: env-file
+  #       data:
+  #         .env: |
+  #           MNEMONIC=<pass phrase
+  #     containers:
+  #     - name: restake
+  #       image: {{ .Values.applications.global.image.repository }}-APP_NAME
+  #       ports:
+  #       - 80
+  #       waitFor:
+  #         port: 80
+  #         initialDelaySeconds: 5
+  #       volumeMounts:
+  #       - name: src
+  #         mountPath: /app
+  #       - name: env-file
+  #         mountPath: /app/.env
+  #         subPath: .env
+  # some-app:
+  #   namespace: other-namespace
+  # another-service:
+  #   namespace: service-namespace
+
+
 statefulSet: {}
   # updateStrategy: OnDelete
 

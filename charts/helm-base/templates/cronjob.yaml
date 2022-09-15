@@ -38,6 +38,7 @@ spec:
           containers:
           - name: {{ $job.name }}
             image: {{if $job.image }}{{ tpl $job.image $ }}{{else}}{{ tpl $.Values.cronjobs.image $ }}{{end}}
+            imagePullPolicy: {{ coalesce $job.imagePullPolicy $.Values.global.imagePullPolicy "Always" }}
             command: {{ toYaml $job.command | nindent 12 }}
           {{- if $.Values.cronjobs.envFrom  }}
           {{- range $_, $e := $.Values.cronjobs.envFrom }}

@@ -62,9 +62,9 @@ volumeMounts:
 {{- with $.volumeMounts }}
 {{- range $k, $m := . }}
 - name: {{ $m.name }}
-  mountPath: {{ $m.mountPath }}
+  mountPath: {{ tpl $m.mountPath $ }}
   {{- if $m.subPath }}
-  subPath: "{{ $m.subPath }}"
+  subPath: "{{ tpl $m.subPath $ }}"
   {{- end}}
   {{- if hasKey $m "readOnly" }}
   readOnly: {{ $m.readOnly }}

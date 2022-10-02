@@ -352,6 +352,11 @@ containers:
 {{ toYaml $.livenessProbe | indent 4 }}
 {{- end }}
 
+{{- if $.startupProbe }}
+startupProbe:
+{{ toYaml $.startupProbe | indent 4 }}
+{{- end }}
+
 {{- if $.ports }}
   ports:
 {{- range $k, $v := $.ports }}

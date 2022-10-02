@@ -28,8 +28,12 @@ spec:
     name: "{{ default $port.port $port.name }}"
   {{- end}}
   selector:
+{{- if $s.selectorLabels }}
+{{- toYaml $s.selectorLabels | nindent 4 }}
+{{- else }}
 {{ $selectorLabels | indent 4 }}
-{{ end }}
+{{- end }}
+{{- end }}
 
 {{- end }}
 

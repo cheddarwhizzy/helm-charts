@@ -22,6 +22,9 @@ spec:
     metadata:
       labels:
 {{ $selectorLabels | indent 8 }}
+{{- if $.Values.additionalPodLabels }}
+{{- toYaml $.Values.additionalPodLabels | nindent 8 }}
+{{- end }}
       annotations:
 {{ $commonAnnotations | indent 8 }}
     spec:

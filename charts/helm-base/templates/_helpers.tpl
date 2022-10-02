@@ -37,6 +37,12 @@ release: {{ .Chart.Name }}
 {{- define "helm-base.selectorLabels" -}}
 app: {{ include "helm-base.name" . }}
 release: {{ .Chart.Name }}
+{{- end }}
+
+
+{{- define "helm-base.additionalPodLabels" -}}
+app: {{ include "helm-base.name" . }}
+release: {{ .Chart.Name }}
 {{ end }}
 
 {{/*
@@ -319,6 +325,8 @@ containers:
       command:
 {{ toYaml $.waitFor.command | indent 6 }}
     initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
+    failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
+    successThreshold: {{ default 1 $.waitFor.successThreshold }}
     periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
     timeoutSeconds: {{ default 5 $.waitFor.timeoutSeconds }}
   readinessProbe:
@@ -326,6 +334,8 @@ containers:
       command:
 {{ toYaml $.waitFor.command | indent 6 }}
     initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
+    failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
+    successThreshold: {{ default 1 $.waitFor.successThreshold }}
     periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
     timeoutSeconds: {{ default 5 $.waitFor.timeoutSeconds }}
 {{- end }} {{/* End .command */}}

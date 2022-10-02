@@ -33,6 +33,9 @@ spec:
     metadata:
       labels:
 {{ $selectorLabels | indent 8 }}
+{{- if $.Values.addtionalPodLabels }}
+{{ toYaml $.Values.addtionalPodLabels | nindent 8 }}
+{{- end }}
   
   {{- if or ($commonAnnotations) ($podAnnotations) }}
       annotations:

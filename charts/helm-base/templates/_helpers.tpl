@@ -353,7 +353,7 @@ containers:
 {{- end }}
 
 {{- if $.startupProbe }}
-startupProbe:
+  startupProbe:
 {{ toYaml $.startupProbe | indent 4 }}
 {{- end }}
 

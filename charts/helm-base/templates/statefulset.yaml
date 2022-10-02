@@ -1,6 +1,7 @@
 {{- if eq .Values.kind "StatefulSet" }}
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
+{{- $podAnnotations := include "helm-base.podAnnotations" . }}
 {{- $volumes := include "helm-base.volumes" . }}
 
 apiVersion: apps/v1
@@ -25,8 +26,11 @@ spec:
 {{- if $.Values.additionalPodLabels }}
 {{- toYaml $.Values.additionalPodLabels | nindent 8 }}
 {{- end }}
+  {{- if or ($commonAnnotations) ($podAnnotations) }}
       annotations:
-{{ $commonAnnotations | indent 8 }}
+{{- $commonAnnotations | indent 8 }}
+{{- $podAnnotations | indent 8 }}
+  {{- end }}
     spec:
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
 

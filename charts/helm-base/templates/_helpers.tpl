@@ -65,18 +65,16 @@ Volume Mounts (per pod)
 
 {{- if $.volumeMounts }}
 volumeMounts:
-{{- with $.volumeMounts }}
-{{- range $k, $m := . }}
+{{- range $k, $m := $.volumeMounts }}
 - name: {{ $m.name }}
   mountPath: {{ tpl $m.mountPath $ }}
   {{- if $m.subPath }}
-  subPath: "{{ tpl $m.subPath $ }}"
+  subPath: {{ tpl $m.subPath $ }}
   {{- end}}
   {{- if hasKey $m "readOnly" }}
   readOnly: {{ $m.readOnly }}
   {{- end }}
 {{- end -}}
-{{- end }}
 {{- end }}
 {{- end -}}
 

@@ -65,7 +65,20 @@ spec:
             {{- toYaml . | nindent 8 }}
         {{- end }}
 
-{{- include "helm-base.volumeMounts" $ | nindent 12 }}
+          {{- if $job.volumeMounts }}
+          volumeMounts:
+          {{- range $k, $m := $job.volumeMounts }}
+          - name: {{ $m.name }}
+            mountPath: {{ tpl $m.mountPath $ }}
+            {{- if $m.subPath }}
+            subPath: {{ tpl $m.subPath $ }}
+            {{- end}}
+            {{- if hasKey $m "readOnly" }}
+            readOnly: {{ $m.readOnly }}
+            {{- end }}
+          {{- end }}
+          {{- end }}
+
 
 {{- $volumes | nindent 10 }}
 

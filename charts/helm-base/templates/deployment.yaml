@@ -33,9 +33,6 @@ spec:
     metadata:
       labels:
 {{ $selectorLabels | indent 8 }}
-{{- if $.Values.addtionalPodLabels }}
-{{ toYaml $.Values.addtionalPodLabels | nindent 8 }}
-{{- end }}
   
   {{- if or ($commonAnnotations) ($podAnnotations) }}
       annotations:
@@ -79,15 +76,15 @@ spec:
 
     {{- with .Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
+        {{- tpl (toYaml . ) $ | nindent 8 }}
       {{- end }}
     {{- with .Values.affinity }}
       affinity:
-        {{- toYaml . $ | nindent 8 }}
+        {{- tpl (toYaml . ) $ | nindent 8 }}
     {{- end }}
     {{- with .Values.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
+        {{- tpl (toYaml . ) $ | nindent 8 }}
     {{- end }}
 
 {{ $volumes | indent 6 }}

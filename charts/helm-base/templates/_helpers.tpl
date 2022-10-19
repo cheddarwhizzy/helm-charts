@@ -29,6 +29,17 @@ If release name contains chart name it will be used as a full name.
 {{/*if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end*/}}
 {{- end -}}
 
+{{/* {{- define "helm-base.secretStore" -}}
+{{- $name := include "helm-base.name" $ }}
+{{- if .Values.secretStore.fullname }}
+{{- .Values.secretStore.fullname }}
+{{- else if .Values.secretStore.name }}
+{{- printf "%s-%s" $name .Values.secretStore.name -}}
+{{- else }}
+aws-parameter-store
+{{- end -}}
+{{- end -}} */}}
+
 {{- define "helm-base.commonLabels" -}}
 app: {{ include "helm-base.name" . }}
 release: {{ .Chart.Name }}

@@ -1,22 +1,23 @@
+{{- if and (.Values.containers) (eq .Values.kind "CronJob") }}
 {{- $name := include "helm-base.fullname" . }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $volumes := include "helm-base.volumes" . }}
 
 {{- $extraAnnotations := include "helm-base.commonAnnotations" . }}
-{{- if .Values.cronjobs.jobs -}}
-{{- range $key, $job := .Values.cronjobs.jobs }}
-
 ---
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: {{ $name }}-{{ $job.name }}
+  name: {{ $name }}
   labels:
 {{ $commonLabels | indent 4 }}
 spec:
-  concurrencyPolicy: {{ $job.concurrencyPolicy | default "Forbid" }}
-  failedJobsHistoryLimit: {{ $job.failedJobsHistoryLimit | default 5 }}
-  startingDeadlineSeconds: {{ $job.startingDeadlineSeconds | default 20 }}
+  concurrencyPolicy: {{ .Values.concurrencyPolicy | default "Forbid" }}
+  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit | default 5 }}
+  startingDeadlineSeconds: {{ .Values.startingDeadlineSeconds | default 20 }}
+  schedule: "{{ .Values.schedule }}"
+  successfulJobsHistoryLimit: {{ .Values.startingDeadlineSeconds | default 3 }}
+  suspend: false
   jobTemplate:
     metadata:
       creationTimestamp: null
@@ -25,69 +26,56 @@ spec:
         metadata:
           creationTimestamp: null
           labels:
-            run: {{ $job.name }}
+            run: {{ $name }}
           annotations:
 {{ $extraAnnotations | indent 12 }}
         spec:
-          restartPolicy: OnFailure
-          terminationGracePeriodSeconds: 30
-{{- include "helm-base.hostAliases" $ | nindent 10 }}
-{{- include "helm-base.dns" $ | nindent 10 }}
-{{- include "helm-base.serviceAccount" $ | nindent 10 }}
-{{- include "helm-base.imagePullSecrets" $ | indent 10 }}
+          restartPolicy: {{ .Values.restartPolicy | default "OnFailure" }}
+          hostNetwork: {{ .Values.hostNetwork | default false }}
+          terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 30 }}
+    {{- include "helm-base.hostAliases" . | nindent 12 }}
+    {{- include "helm-base.dns" . | nindent 12 }}
+    {{- include "helm-base.serviceAccount" . | nindent 10 }}
+    {{- include "helm-base.imagePullSecrets" . | nindent 12 }}
+    {{- if .Values.initContainers }}
+          initContainers:
+    {{- range $k, $c := .Values.initContainers }}
+    {{- $new := dict }}
+    {{- range $k, $v := $ }}
+    {{- $_ := set $new $k $v }}
+    {{- end }}
+    {{- range $k, $v := $c }}
+    {{- $_ := set $new $k $v }}
+    {{- end }}
+    {{- include "helm-base.containerBase" $new | indent 10 }}
+    {{- end }}
+    {{- end }}
+
           containers:
-          - name: {{ $job.name }}
-            image: {{if $job.image }}{{ tpl $job.image $ }}{{else}}{{ tpl $.Values.cronjobs.image $ }}{{end}}
-            imagePullPolicy: {{ coalesce $job.imagePullPolicy $.Values.global.imagePullPolicy "Always" }}
-            command: {{ toYaml $job.command | nindent 12 }}
-          {{- if $.Values.cronjobs.envFrom  }}
-          {{- range $_, $e := $.Values.cronjobs.envFrom }}
-            envFrom:
-            {{- if $e.configMapRef }}
-            - configMapRef:
-                name: {{if $e.configMapRef.fullname }}{{ $e.configMapRef.fullname }}{{else}}{{ $name }}-{{ $e.configMapRef.name }}{{end}}
-            {{- else if $e.secretRef }}
-            - secretRef:
-                name: {{if $e.secretRef.fullname }}{{ $e.secretRef.fullname }}{{else}}{{ $name }}-{{ $e.secretRef.name }}{{end}}
-            {{- end }}
-          {{- end }}
-          {{- end }}
+    {{- range $k, $c := .Values.containers }}
+    {{- $new := dict }}
+    {{- range $k, $v := $ }}
+    {{- $_ := set $new $k $v }}
+    {{- end }}
+    {{- range $k, $v := $c }}
+    {{- $_ := set $new $k $v }}
+    {{- end }}
+    {{- include "helm-base.containerBase" $new | indent 10 }}
+    {{- end }}
 
-            {{- if $job.volumeMounts }}
-            volumeMounts:
-            {{- range $k, $m := $job.volumeMounts }}
-            - name: {{ $m.name }}
-              mountPath: {{ tpl $m.mountPath $ }}
-              {{- if $m.subPath }}
-              subPath: {{ tpl $m.subPath $ }}
-              {{- end}}
-              {{- if hasKey $m "readOnly" }}
-              readOnly: {{ $m.readOnly }}
-              {{- end }}
-            {{- end }}
-            {{- end }}
-
-        {{- with $.Values.nodeSelector }}
+        {{- with .Values.nodeSelector }}
           nodeSelector:
-            {{- toYaml . | nindent 8 }}
+            {{- tpl (toYaml . ) $ | nindent 8 }}
           {{- end }}
-        {{- with $.Values.affinity }}
+        {{- with .Values.affinity }}
           affinity:
-            {{- tpl . $ | nindent 8 }}
+            {{- tpl (toYaml . ) $ | nindent 8 }}
         {{- end }}
-        {{- with $.Values.tolerations }}
+        {{- with .Values.tolerations }}
           tolerations:
-            {{- toYaml . | nindent 8 }}
+            {{- tpl (toYaml . ) $ | nindent 8 }}
         {{- end }}
 
+    {{ $volumes | indent 6 }}
 
-
-
-{{- $volumes | nindent 10 }}
-
-  schedule: "{{ $job.schedule }}"
-  successfulJobsHistoryLimit: 3
-  suspend: false
-
-  {{- end }}
-  {{- end -}}
+{{- end -}}

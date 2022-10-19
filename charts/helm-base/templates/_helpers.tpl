@@ -3,14 +3,14 @@
 Expand the name of the chart.
 */}}
 {{- define "helm-base.name" -}}
-{{- default $.Release.Name $.Values.serviceName | trunc 63 | trimSuffix "-" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If release name contains chart name it will be used as a full name.
 */}}
-
 {{- define "helm-base.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
@@ -162,7 +162,6 @@ volumes:
 {{- end -}}
 
 
-
 {{- define "helm-base.containers" -}}
 {{- if .Values.initContainers }}
 initContainers:
@@ -171,7 +170,6 @@ initContainers:
 {{- include "helm-base.containerBase" $newdict }}
 {{- end }}
 {{- end }}
-
 {{- if .Values.containers }}
 containers:
 {{- range $k, $c := .Values.containers }}
@@ -205,13 +203,10 @@ containers:
 
 {{- define "helm-base.containerBase" -}}
 {{- $name := include "helm-base.fullname" $ -}}
-
 {{- $tag := "" }}
 {{- if not $.image }}
 {{- $tag = printf ":%s" (coalesce $.Values.image.tag $.Values.global.image.tag) }}
 {{- end }}
-
-
 - name: {{ tpl $.name $ }}
   image: "{{ tpl (tpl (coalesce $.image $.Values.image.repository $.Values.global.image.repository) $) $ }}{{ $tag }}"
   imagePullPolicy: {{ coalesce $.imagePullPolicy $.Values.global.imagePullPolicy "Always" }}
@@ -233,16 +228,12 @@ containers:
 {{- end }}
 {{- end }}
 {{- end }}
-
 {{- if $.tty }}
   tty: true
 {{- end }}
-
 {{- if $.stdin }}
   stdin: true 
 {{- end }}
-
-
 {{- if $.workingDir }}
   workingDir: {{ tpl $.workingDir $ }}
 {{- end }}
@@ -250,17 +241,14 @@ containers:
   resources:
 {{ toYaml $.resources | indent 4 }}
 {{- end -}} {{/* End resources */}}
-
 {{- include "helm-base.volumeMounts" $ | indent 2 }}
-
 {{- if $.privileged }}
   securityContext:
     privileged: true
 {{- else if $.securityContext }}
   securityContext:
 {{ toYaml $.securityContext | nindent 4 }}
-{{- end -}} {{/* End privileged */}}
-
+{{- end }} {{/* End privileged */}}
 {{- if or $.env $.Values.env $.envFrom }}
 {{- if $.envFrom  }}
   envFrom:
@@ -297,8 +285,7 @@ containers:
         apiVersion: v1
         fieldPath: status.podIP
 {{- end }} {{/* End env */}}
-
-{{- if $.waitFor -}}
+{{- if $.waitFor }}
 {{- if $.waitFor.port }}
   livenessProbe:
     failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
@@ -339,22 +326,18 @@ containers:
 {{- end }} {{/* End .command */}}
 {{- end }} {{/* End .waitFor.port */}}
 {{- end }} {{/* End .waitFor */}}
-
 {{- if $.readinessProbe }}
   readinessProbe:
 {{ toYaml $.readinessProbe | indent 4 }}
 {{- end }}
-
 {{- if $.livenessProbe }}
   livenessProbe:
 {{ toYaml $.livenessProbe | indent 4 }}
 {{- end }}
-
 {{- if $.startupProbe }}
   startupProbe:
 {{ toYaml $.startupProbe | indent 4 }}
 {{- end }}
-
 {{- if $.ports }}
   ports:
 {{- range $k, $v := $.ports }}
@@ -369,12 +352,10 @@ containers:
 {{- end }}
 {{- end }}
 {{- end }}
-
 {{- if $.lifecycle }}
   lifecycle:
 {{ toYaml $.lifecycle | indent 4 }}
 {{- end }}
-
 {{- end }}
 
 
@@ -423,13 +404,13 @@ deny all;
 {{- if .Values.serviceAccount.create -}}
 {{- if .Values.serviceAccount.name }}
 {{- tpl .Values.serviceAccount.name $ }}
-{{- else -}}
+{{- else }}
 {{- include "helm-base.fullname" . }}
 {{- end }}
 {{- else -}}
 "default"
 {{- end }}
-{{- end -}}
+{{- end }}
 
 {{- define "helm-base.storageClassName" }}
 {{- default (include "helm-base.fullname" .) (.Values.storageclass.name) }}
@@ -449,7 +430,7 @@ imagePullSecrets:
 {{- define "helm-base.serviceAccount" -}}
 serviceAccount: {{ include "helm-base.serviceAccountName" . }}
 serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
-{{- end -}}
+{{- end }}
 
 {{- define "helm-base.dns" -}}
 {{- if or .Values.dnsPolicy .Values.global.dnsPolicy }}

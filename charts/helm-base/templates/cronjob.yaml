@@ -14,9 +14,9 @@ metadata:
   labels:
 {{ $commonLabels | indent 4 }}
 spec:
-  concurrencyPolicy: Forbid
-  failedJobsHistoryLimit: 5
-  startingDeadlineSeconds: 20
+  concurrencyPolicy: {{ $job.concurrencyPolicy | default "Forbid" }}
+  failedJobsHistoryLimit: {{ $job.failedJobsHistoryLimit | default 5 }}
+  startingDeadlineSeconds: {{ $job.startingDeadlineSeconds | default 20 }}
   jobTemplate:
     metadata:
       creationTimestamp: null

@@ -277,7 +277,7 @@ containers:
 {{- if $.Values.env }}
 {{- range $dk, $dv := $.Values.env }}
   - name: {{ $dk }}
-    value: "{{ with $dv }}{{ tpl . $ }}{{end}}"
+    value: "{{ with $dv }}{{ tpl (. | toString ) $ }}{{end}}"
 {{- end }}
 {{- end }}
 {{- if $.env }}

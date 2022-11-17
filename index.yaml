@@ -47,9 +47,9 @@ entries:
     version: 0.1.19
   - apiVersion: v1
     appVersion: develop
-    created: "2022-11-03T02:21:10.063881-05:00"
+    created: "2022-11-16T22:40:32.040748-06:00"
     description: Base helm chart for DRY Kubernetes manifests
-    digest: ac717009219c3804b8185b973ec53982344dedea54c97f7258dc097ab9fe0531
+    digest: 39c0a2d8d55439ec20ace6a6fc665e858c2c4eab5d3235a87d95415430d9221e
     name: helm-base
     urls:
     - https://github.com/cheddarwhizzy/helm-charts/releases/download/helm-base-0.1.20/helm-base-0.1.20.tgz

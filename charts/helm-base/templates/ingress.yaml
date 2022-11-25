@@ -57,8 +57,8 @@ spec:
     - secretName: {{ $secretName }}
       hosts:
         - "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
-      {{- if $route.aliases }}
-        {{- range $_, $alias := $route.aliases }}
+      {{- if or $route.aliases $.Values.ingress.aliases }}
+        {{- range $_, $alias := (concat (default list $route.aliases) $.Values.ingress.aliases) }}
         - "{{ tpl $alias $ }}"
         {{- end }}
       {{- end }}

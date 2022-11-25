@@ -3,7 +3,7 @@
 Expand the name of the chart.
 */}}
 {{- define "helm-base.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- default .Release.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
@@ -42,18 +42,18 @@ aws-parameter-store
 
 {{- define "helm-base.commonLabels" -}}
 app: {{ include "helm-base.name" . }}
-release: {{ .Chart.Name }}
+release: {{ include "helm-base.name" . }}
 {{- end -}}
 
 {{- define "helm-base.selectorLabels" -}}
 app: {{ include "helm-base.name" . }}
-release: {{ .Chart.Name }}
+release: {{ include "helm-base.name" . }}
 {{- end }}
 
 
 {{- define "helm-base.additionalPodLabels" -}}
 app: {{ include "helm-base.name" . }}
-release: {{ .Chart.Name }}
+release: {{ include "helm-base.name" . }}
 {{ end }}
 
 {{/*

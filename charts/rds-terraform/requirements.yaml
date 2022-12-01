@@ -1,5 +1,0 @@
-dependencies:
-- name: helm-base
-  version: 0.1.0
-  repository: https://cheddarwhizzy.github.io/helm-charts/
-  alias: config

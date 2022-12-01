@@ -1,4 +1,0 @@
-apiVersion: v1
-description: RDS Terraform Helm Chart. 
-name: rds-terraform
-version: 1.0.0

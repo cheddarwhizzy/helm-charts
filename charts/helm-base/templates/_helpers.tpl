@@ -41,19 +41,19 @@ aws-parameter-store
 {{- end -}} */}}
 
 {{- define "helm-base.commonLabels" -}}
-app: {{ include "helm-base.name" . }}
-release: {{ include "helm-base.name" . }}
+app: {{ include "helm-base.fullname" . }}
+release: {{ include "helm-base.fullname" . }}
 {{- end -}}
 
 {{- define "helm-base.selectorLabels" -}}
-app: {{ include "helm-base.name" . }}
-release: {{ include "helm-base.name" . }}
+app: {{ include "helm-base.fullname" . }}
+release: {{ include "helm-base.fullname" . }}
 {{- end }}
 
 
 {{- define "helm-base.additionalPodLabels" -}}
-app: {{ include "helm-base.name" . }}
-release: {{ include "helm-base.name" . }}
+app: {{ include "helm-base.fullname" . }}
+release: {{ include "helm-base.fullname" . }}
 {{ end }}
 
 {{/*

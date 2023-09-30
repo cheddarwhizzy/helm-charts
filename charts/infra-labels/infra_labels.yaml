@@ -1,8 +1,7 @@
 labels:
-  default:
-    owner: devops
-    service: rfc-labels-demo
-    app: rfc-labels-demo
+  owner: devops
+  service: rfc-labels-demo
+  app: rfc-labels-demo
     # manager: brett.porter@wunderkind.co
     # director: mr.director@wunderkind.co
     # gitlab_project_url: https://gitlab.bouncex.net

@@ -1,15 +1,12 @@
 {{ $fullname := include "infra-labels.fullname" . }}
 {{ $labels := include "infra-labels.labels" . }}
-{{- range $key, $val := .Values.labels }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ $fullname }}-{{ $key }}
+  name: {{ $fullname }}
   labels:
-    {{ $labels | nindent 4 }}
+    {{- $labels | nindent 4 }}
 data:
-{{- range $vk, $v := $val }}
-  {{ $vk }}: {{ $v }}
-{{- end }}
----
+{{- range $key, $val := .Values.labels }}
+  {{ $key }}: {{ $val }}
 {{- end }}

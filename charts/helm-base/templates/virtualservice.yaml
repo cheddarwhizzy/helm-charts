@@ -40,6 +40,20 @@ spec:
     {{- else }}
     - mesh
     {{- end }}
+  {{- if $route.tls }}
+  tls:
+    - match:
+        - port: 443
+          sniHosts:
+            {{- range $_, $host := (concat (list (tpl (tpl $route.host $root) $root)) (default list $route.aliases) $.Values.virtualservice.aliases) }}
+            - "{{ tpl $host $ }}"
+            {{- end }}
+      route:
+        - destination:
+            host: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+            port:
+              number: {{ default $.Values.virtualservice.port $route.port }}
+  {{- end }}
   http:
     - match:
         - uri:

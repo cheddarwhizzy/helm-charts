@@ -120,12 +120,24 @@ if command -v helm &> /dev/null; then
     # Calculate the correct GitHub release URL
     RELEASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${PACKAGE_VERSION}/$(basename "${PACKAGE_FILE}")"
     
-    # Create a temporary index file
-    helm repo index . --url "${RELEASE_URL}" --merge ./index.yaml
+    # Create a temporary index file using base URL without filename to prevent duplication
+    BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${PACKAGE_VERSION}"
+    helm repo index . --url "${BASE_URL}" --merge ./index.yaml
     
-    # Fix any malformed URLs in the index
-    sed -i.bak "s|${RELEASE_URL}/\.cr-release-packages/|${RELEASE_URL}|g" ./index.yaml
-    sed -i.bak "s|${RELEASE_URL}/\.deploy/|${RELEASE_URL}|g" ./index.yaml
+    # Fix any malformed URLs in the index - comprehensive cleanup
+    echo "🔧 Fixing malformed URLs in index.yaml..."
+    
+    # Fix duplicated filenames (the main issue we encountered)
+    sed -i.bak "s|${BASE_URL}/helm-base-${PACKAGE_VERSION}\.tgzhelm-base-${PACKAGE_VERSION}\.tgz|${RELEASE_URL}|g" ./index.yaml
+    
+    # Fix other common malformed URL patterns
+    sed -i.bak "s|${BASE_URL}/\.cr-release-packages/|${BASE_URL}/|g" ./index.yaml
+    sed -i.bak "s|${BASE_URL}/\.deploy/|${BASE_URL}/|g" ./index.yaml
+    
+    # Fix any remaining malformed URLs with duplicated filenames (generic pattern)
+    sed -i.bak "s|\(https://github\.com/${REPO_OWNER}/${REPO_NAME}/releases/download/[^/]*/[^.]*\)\.tgz[^.]*\.tgz|\1.tgz|g" ./index.yaml
+    
+    # Clean up backup files
     rm -f ./index.yaml.bak
     
     echo "✅ Chart index updated with GitHub release URL: ${RELEASE_URL}"

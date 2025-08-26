@@ -98,6 +98,26 @@ cronjobs:
 #         - python
 #         - bin/cache_buyside_user_responsiveness.py
 
+# Optional Telemetry configuration for Istio access logs
+telemetry:
+  enabled: false
+  defaultProvider: "envoy"
+  annotations: {}
+  routes: []
+#     - name: access-logs
+#       providers:
+#         - name: envoy
+#       includeRequestHeaders:
+#         - "x-forwarded-for"
+#         - "x-request-id"
+#         - "user-agent"
+#       includeResponseHeaders:
+#         - "x-request-id"
+#         - "content-type"
+#         - "content-length"
+#       filter:
+#         expression: "response.code >= 400"
+
 # Set these overrides in values.yaml
 
 # Volumes for deployments. Must also specify in initContainers/containers below

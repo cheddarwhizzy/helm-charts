@@ -1,0 +1,63 @@
+{{- if .Values.telemetry.enabled -}}
+{{- $root := . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $name := include "helm-base.fullname" . }}
+{{- range $route := $.Values.telemetry.routes }}
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: {{ $name }}-{{ tpl $route.name $ }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+{{- $telemetryAnnotations := dict }}
+{{- if $route.annotations }}
+{{- $telemetryAnnotations = merge $route.annotations $.Values.telemetry.annotations }}
+{{- else }}
+{{- $telemetryAnnotations = $.Values.telemetry.annotations }}
+{{- end }}
+  {{- range $key, $value := $telemetryAnnotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+  {{- end }}
+
+spec:
+  selector:
+    matchLabels:
+{{ $commonLabels | indent 6 }}
+  accessLogging:
+    - providers:
+      {{- if $route.providers }}
+      {{- range $provider := $route.providers }}
+      - name: {{ tpl $provider.name $ }}
+      {{- end }}
+      {{- else }}
+      - name: {{ default "envoy" $root.Values.telemetry.defaultProvider }}
+      {{- end }}
+      {{- if $route.filter }}
+      filter:
+        {{- toYaml $route.filter | nindent 8 }}
+      {{- end }}
+      {{- if $route.includeRequestHeaders }}
+      includeRequestHeaders:
+        {{- range $header := $route.includeRequestHeaders }}
+        - {{ $header | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if $route.includeResponseHeaders }}
+      includeResponseHeaders:
+        {{- range $header := $route.includeResponseHeaders }}
+        - {{ $header | quote }}
+        {{- end }}
+      {{- end }}
+      {{- if $route.includeResponseBody }}
+      includeResponseBody:
+        {{- toYaml $route.includeResponseBody | nindent 8 }}
+      {{- end }}
+      {{- if $route.includeRequestBody }}
+      includeRequestBody:
+        {{- toYaml $route.includeRequestBody | nindent 8 }}
+      {{- end }}
+
+{{- end -}}
+{{- end -}}

@@ -331,6 +331,33 @@ ingress:
   #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
   #   http-request deny if !network_allowed
 
+virtualservice:
+  enabled: false
+  host: 
+  gateway: 
+  port: 80
+  annotations: {}
+  routes: []
+  # - name: default
+  #   host: "{{ .Values.virtualservice.host }}"
+  #   port: 3000
+  #   path: /
+  #   gateway: mesh
+  #   corsPolicy:
+  #     allowOrigins:
+  #     - exact: "https://example.com"
+  #     allowMethods:
+  #     - GET
+  #     - POST
+  #     allowHeaders:
+  #     - authorization
+  #     - content-type
+  #   retries:
+  #     attempts: 3
+  #     perTryTimeout: 2s
+  #   timeout: 30s
+  aliases: []
+
 
   # Ingress route multiHostCorsEnabled domains
   corsAllowedDomains:

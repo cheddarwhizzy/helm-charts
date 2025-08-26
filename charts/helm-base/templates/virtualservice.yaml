@@ -1,0 +1,66 @@
+{{- if and .Values.virtualservice.enabled .Values.services -}}
+{{- $root := $ }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $name := include "helm-base.fullname" . }}
+{{- $firstService := first .Values.services }}
+{{- $defaultServiceName := printf "%s-%s" $name $firstService.name }}
+{{if $firstService.fullname}}{{$defaultServiceName = $firstService.fullname}}{{end}}
+{{- range $route := $.Values.virtualservice.routes }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $name }}-{{ tpl $route.name $ }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+{{- $virtualserviceAnnotations := dict }}
+{{- if $route.annotations }}
+{{- $virtualserviceAnnotations = merge $route.annotations $.Values.virtualservice.annotations }}
+{{- else }}
+{{- $virtualserviceAnnotations = $.Values.virtualservice.annotations }}
+{{- end }}
+  {{- range $key, $value := $virtualserviceAnnotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+  {{- end }}
+
+spec:
+  hosts:
+    - "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.virtualservice.host $root) $root }}{{end}}"
+    {{- if or $route.aliases $.Values.virtualservice.aliases }}
+    {{- range $_, $alias := (concat (default list $route.aliases) $.Values.virtualservice.aliases) }}
+    - "{{ tpl $alias $ }}"
+    {{- end }}
+    {{- end }}
+  gateways:
+    {{- if $route.gateway }}
+    - {{ tpl $route.gateway $ }}
+    {{- else if $.Values.virtualservice.gateway }}
+    - {{ tpl $.Values.virtualservice.gateway $ }}
+    {{- else }}
+    - mesh
+    {{- end }}
+  http:
+    - match:
+        - uri:
+            prefix: {{ tpl $route.path $ }}
+      route:
+        - destination:
+            host: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+            port:
+              number: {{ default $.Values.virtualservice.port $route.port }}
+    {{- if $route.corsPolicy }}
+      corsPolicy:
+        {{- toYaml $route.corsPolicy | nindent 8 }}
+    {{- end }}
+    {{- if $route.retries }}
+      retries:
+        {{- toYaml $route.retries | nindent 8 }}
+    {{- end }}
+    {{- if $route.timeout }}
+      timeout: {{ $route.timeout }}
+    {{- end }}
+
+{{- end -}}
+
+{{- end }}

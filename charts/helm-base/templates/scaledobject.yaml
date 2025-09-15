@@ -1,0 +1,20 @@
+{{- if and .Values.keda .Values.keda.enabled -}}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "helm-base.fullname" . }}
+  labels:
+{{ $commonLabels | indent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: {{ .Values.apiVersion }}
+    name: {{ include "helm-base.fullname" . }}
+    kind: {{ $.Values.kind }}
+  pollingInterval: {{ default "30" .Values.keda.pollingInterval }}
+  minReplicaCount: {{ default "1" .Values.keda.minReplicaCount }}
+  maxReplicaCount: {{ default "10" .Values.keda.maxReplicaCount }}
+  cooldownPeriod: {{ default "300" .Values.keda.cooldownPeriod }}
+  triggers:
+{{- toYaml .Values.keda.triggers | nindent 2 }}
+{{- end -}}

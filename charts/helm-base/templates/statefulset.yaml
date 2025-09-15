@@ -1,7 +1,7 @@
-{{- if eq .Values.kind "StatefulSet" }}
+{{- if and (.Values.containers) (eq .Values.kind "StatefulSet") }}
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
+{{- $podLabels := include "helm-base.podLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
-{{- $podAnnotations := include "helm-base.podAnnotations" . }}
 {{- $volumes := include "helm-base.volumes" . }}
 
 apiVersion: apps/v1
@@ -11,7 +11,7 @@ metadata:
   labels:
 {{ $selectorLabels | indent 4 }}
 spec:
-  updateStrategy: 
+  updateStrategy:
     type: {{ default "RollingUpdate" .Values.statefulSet.updateStrategy }}
   selector:
     matchLabels:
@@ -20,70 +20,7 @@ spec:
   serviceName: {{ default (include "helm-base.fullname" .) .Values.statefulSet.serviceName }}
   replicas: {{ .Values.replicaCount }}
   template:
-    metadata:
-      labels:
-{{ $selectorLabels | indent 8 }}
-{{- if $.Values.additionalPodLabels }}
-{{- toYaml $.Values.additionalPodLabels | nindent 8 }}
-{{- end }}
-  {{- if or ($commonAnnotations) ($podAnnotations) }}
-      annotations:
-{{- $commonAnnotations | indent 8 }}
-{{- $podAnnotations | indent 8 }}
-  {{- end }}
-    spec:
-      hostNetwork: {{ .Values.hostNetwork }}
-      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
-
-{{ include "helm-base.hostAliases" . | indent 6 }}
-
-{{ include "helm-base.dns" . | indent 6 }}
-
-{{ include "helm-base.serviceAccount" . | indent 6 }}
-
-{{ include "helm-base.imagePullSecrets" . | indent 6 }}
-
-{{- if .Values.initContainers }}
-      initContainers:
-{{- range $k, $c := .Values.initContainers }}
-{{- $new := dict }}
-{{- range $k, $v := $ }}
-{{- $_ := set $new $k $v }}
-{{- end }}
-{{- range $k, $v := $c }}
-{{- $_ := set $new $k $v }}
-{{- end }}
-{{ include "helm-base.containerBase" $new | indent 6 }}
-{{- end }}
-{{- end }}
-
-      containers:
-{{- range $k, $c := .Values.containers }}
-{{- $new := dict }}
-{{- range $k, $v := $ }}
-{{- $_ := set $new $k $v }}
-{{- end }}
-{{- range $k, $v := $c }}
-{{- $_ := set $new $k $v }}
-{{- end }}
-{{ include "helm-base.containerBase" $new | indent 6 }}
-{{- end }}
-
-{{ $volumes | indent 6 }}
-
-    {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-    {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
-    {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-    {{- end }}
-
+    {{- include "helm-base.pod" . }}
 
 {{- if .Values.volumeClaimTemplates }}
   volumeClaimTemplates:

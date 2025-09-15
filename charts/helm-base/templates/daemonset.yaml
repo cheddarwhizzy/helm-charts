@@ -1,37 +1,27 @@
-{{- if and (.Values.containers) (eq .Values.kind "Deployment") }}
+{{- if and (.Values.containers) (eq .Values.kind "DaemonSet") }}
 
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
-{{- $podLabels := include "helm-base.podLabels" . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $volumes := include "helm-base.volumes" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
 {{- $podAnnotations := include "helm-base.podAnnotations" . }}
 
 apiVersion: {{ .Values.apiVersion }}
-kind: Deployment 
+kind: {{ .Values.kind }}
 metadata:
   name: {{ template "helm-base.fullname" . }}
   labels:
-{{- $selectorLabels | nindent 4 }}
+{{ $selectorLabels | indent 4 }}
 spec:
-  replicas: {{ $.Values.replicaCount }}
-  progressDeadlineSeconds: {{ $.Values.progressDeadlineSeconds }}
   {{- if $.Values.minReadySeconds }}
   minReadySeconds: {{ $.Values.minReadySeconds }}
   {{- end }}
   revisionHistoryLimit: {{ $.Values.revisionHistoryLimit }}
-  strategy:
-    type: {{ $.Values.strategy.type }}
-    rollingUpdate:
-      maxUnavailable: {{ $.Values.strategy.maxUnavailable }}
-      {{- if $.Values.strategy.maxSurge }}
-      maxSurge: {{ $.Values.strategy.maxSurge }}
-      {{- end }}
   selector:
     matchLabels:
 {{ $selectorLabels | indent 6 }}
   template:
     {{- include "helm-base.pod" . }}
-
 
 {{ $volumes | indent 6 }}
 

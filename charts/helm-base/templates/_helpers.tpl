@@ -3,14 +3,14 @@
 Expand the name of the chart.
 */}}
 {{- define "helm-base.name" -}}
-{{- default .Release.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- default $.Release.Name $.Values.serviceName | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*
 Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
 */}}
+
 {{- define "helm-base.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
@@ -24,37 +24,33 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 {{- end -}}
 
+{{- define "helm-base.rolename" -}}
+{{- if .Values.rbac.roleName -}}
+{{ .Values.rbac.roleName }}
+{{- else -}}
+{{ include "helm-base.fullname" . }}
+{{- end -}}
+{{- end -}}
 
 {{- define "helm-base.serviceName" -}}
 {{/*if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $k $s.name }}{{end*/}}
 {{- end -}}
 
-{{/* {{- define "helm-base.secretStore" -}}
-{{- $name := include "helm-base.name" $ }}
-{{- if .Values.secretStore.fullname }}
-{{- .Values.secretStore.fullname }}
-{{- else if .Values.secretStore.name }}
-{{- printf "%s-%s" $name .Values.secretStore.name -}}
-{{- else }}
-aws-parameter-store
-{{- end -}}
-{{- end -}} */}}
-
 {{- define "helm-base.commonLabels" -}}
-app: {{ include "helm-base.fullname" . }}
-release: {{ include "helm-base.fullname" . }}
+app: {{ include "helm-base.name" . }}
+release: {{ .Chart.Name }}
 {{- end -}}
 
-{{- define "helm-base.selectorLabels" -}}
-app: {{ include "helm-base.fullname" . }}
-release: {{ include "helm-base.fullname" . }}
-{{- end }}
+{{- define "helm-base.podLabels" -}}
+{{- if .Values.podLabels -}}
+{{- toYaml .Values.podLabels }}
+{{- end -}}
+{{- end -}}
 
-
-{{- define "helm-base.additionalPodLabels" -}}
-app: {{ include "helm-base.fullname" . }}
-release: {{ include "helm-base.fullname" . }}
-{{ end }}
+{{- define "helm-base.selectorLabels" }}
+app: {{ include "helm-base.name" . }}
+release: {{ .Chart.Name }}
+{{ end -}}
 
 {{/*
 Service Ports
@@ -76,16 +72,18 @@ Volume Mounts (per pod)
 
 {{- if $.volumeMounts }}
 volumeMounts:
-{{- range $k, $m := $.volumeMounts }}
-- name: {{ $m.name }}
+{{- with $.volumeMounts }}
+{{- range $k, $m := . }}
+- name: {{ tpl $m.name $ }}
   mountPath: {{ tpl $m.mountPath $ }}
   {{- if $m.subPath }}
-  subPath: {{ tpl $m.subPath $ }}
+  subPath: "{{ tpl $m.subPath $ }}"
   {{- end}}
   {{- if hasKey $m "readOnly" }}
   readOnly: {{ $m.readOnly }}
   {{- end }}
 {{- end -}}
+{{- end }}
 {{- end }}
 {{- end -}}
 
@@ -122,6 +120,7 @@ volumes:
 - name: {{ $vol.name }}
   hostPath:
     path: {{ $vol.hostPath.path }}
+    type: {{ $vol.type | default "DirectoryOrCreate" }}
 {{- else if $vol.persistentVolumeClaim }}
 - name: {{ $vol.name }}
   persistentVolumeClaim:
@@ -173,6 +172,7 @@ volumes:
 {{- end -}}
 
 
+
 {{- define "helm-base.containers" -}}
 {{- if .Values.initContainers }}
 initContainers:
@@ -181,6 +181,7 @@ initContainers:
 {{- include "helm-base.containerBase" $newdict }}
 {{- end }}
 {{- end }}
+
 {{- if .Values.containers }}
 containers:
 {{- range $k, $c := .Values.containers }}
@@ -212,162 +213,7 @@ containers:
 {{- end }} {{/*End if hooks*/}}
 {{- end }} {{/*End hooks*/}}
 
-{{- define "helm-base.containerBase" -}}
-{{- $name := include "helm-base.fullname" $ -}}
-{{- $tag := "" }}
-{{- if not $.image }}
-{{- $tag = printf ":%s" (coalesce $.Values.image.tag $.Values.global.image.tag) }}
-{{- end }}
-- name: {{ tpl $.name $ }}
-  image: "{{ tpl (tpl (coalesce $.image $.Values.image.repository $.Values.global.image.repository) $) $ }}{{ $tag }}"
-  imagePullPolicy: {{ coalesce $.imagePullPolicy $.Values.global.imagePullPolicy "Always" }}
-{{- if $.command }}  
-  command: 
-{{- $new := list }}
-{{- range $_, $v := $.command }}
-{{- with $v }}
-{{- $new = append $new (tpl (tpl . $) $) }}
-{{- end }}
-{{- end }}
-{{ toYaml $new | indent 2 }}
-{{- end }}
-{{- if $.args }}  
-  args: 
-{{- range $_, $v := $.args }}
-{{- with $v }}
-  - "{{ tpl . $ -}}"
-{{- end }}
-{{- end }}
-{{- end }}
-{{- if $.tty }}
-  tty: true
-{{- end }}
-{{- if $.stdin }}
-  stdin: true 
-{{- end }}
-{{- if $.workingDir }}
-  workingDir: {{ tpl $.workingDir $ }}
-{{- end }}
-{{- if $.resources }}
-  resources:
-{{ toYaml $.resources | indent 4 }}
-{{- end -}} {{/* End resources */}}
-{{- include "helm-base.volumeMounts" $ | indent 2 }}
-{{- if $.privileged }}
-  securityContext:
-    privileged: true
-{{- else if $.securityContext }}
-  securityContext:
-{{ toYaml $.securityContext | nindent 4 }}
-{{- end }} {{/* End privileged */}}
-{{- if or $.env $.Values.env $.envFrom }}
-{{- if $.envFrom  }}
-  envFrom:
-{{- range $_, $e := $.envFrom }}
-  {{- if $e.configMapRef }}
-  - configMapRef:
-      name: {{if $e.configMapRef.fullname }}{{ $e.configMapRef.fullname }}{{else}}{{ $name }}-{{ $e.configMapRef.name }}{{end}}
-  {{- else if $e.secretRef }}
-  - secretRef:
-      name: {{if $e.secretRef.fullname }}{{ $e.secretRef.fullname }}{{else}}{{ $name }}-{{ $e.secretRef.name }}{{end}}
-  {{- end }}
-{{- end }}
-{{- end }}
-  env:
-{{- if $.Values.env }}
-{{- range $dk, $dv := $.Values.env }}
-  - name: {{ $dk }}
-    value: "{{ with $dv }}{{ tpl (. | toString ) $ }}{{end}}"
-{{- end }}
-{{- end }}
-{{- if $.env }}
-{{- range $k, $v := $.env }}
-  - name: {{ $k }}
-    value: "{{ with $v }}{{ tpl . $ }}{{end}}"
-{{- end }}
-{{- end }}
-  - name: POD_NAME
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.name
-  - name: POD_IP
-    valueFrom:
-      fieldRef:
-        apiVersion: v1
-        fieldPath: status.podIP
-{{- end }} {{/* End env */}}
-{{- if $.waitFor }}
-{{- if $.waitFor.port }}
-  livenessProbe:
-    failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
-    initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
-    periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
-    successThreshold: {{ default 1 $.waitFor.successThreshold }}
-    tcpSocket:
-      port: {{ $.waitFor.port }}
-    timeoutSeconds: 1
-  readinessProbe:
-    failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
-    initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
-    periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
-    successThreshold: {{ default 1 $.waitFor.successThreshold }}
-    tcpSocket:
-      port: {{ $.waitFor.port }}
-    timeoutSeconds: 1
-{{- else }}
-{{- if $.waitFor.command }}
-  livenessProbe:
-    exec:
-      command:
-{{ toYaml $.waitFor.command | indent 6 }}
-    initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
-    failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
-    successThreshold: {{ default 1 $.waitFor.successThreshold }}
-    periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
-    timeoutSeconds: {{ default 5 $.waitFor.timeoutSeconds }}
-  readinessProbe:
-    exec:
-      command:
-{{ toYaml $.waitFor.command | indent 6 }}
-    initialDelaySeconds: {{ default 60 $.waitFor.initialDelaySeconds }}
-    failureThreshold: {{ default 3 $.waitFor.failureThreshold }}
-    successThreshold: {{ default 1 $.waitFor.successThreshold }}
-    periodSeconds: {{ default 10 $.waitFor.periodSeconds }}
-    timeoutSeconds: {{ default 5 $.waitFor.timeoutSeconds }}
-{{- end }} {{/* End .command */}}
-{{- end }} {{/* End .waitFor.port */}}
-{{- end }} {{/* End .waitFor */}}
-{{- if $.readinessProbe }}
-  readinessProbe:
-{{ toYaml $.readinessProbe | indent 4 }}
-{{- end }}
-{{- if $.livenessProbe }}
-  livenessProbe:
-{{ toYaml $.livenessProbe | indent 4 }}
-{{- end }}
-{{- if $.startupProbe }}
-  startupProbe:
-{{ toYaml $.startupProbe | indent 4 }}
-{{- end }}
-{{- if $.ports }}
-  ports:
-{{- range $k, $v := $.ports }}
-{{- if eq (kindOf $v) "map" }}
-  - name: {{ $v.name }}
-    containerPort: {{ $v.port }}
-    protocol: {{ default "TCP" $v.protocol }}
-{{- else }}
-  - name: {{ printf "p-%s" ($k | toString) }}
-    containerPort: {{ $v }}
-    protocol: "TCP"
-{{- end }}
-{{- end }}
-{{- end }}
-{{- if $.lifecycle }}
-  lifecycle:
-{{ toYaml $.lifecycle | indent 4 }}
-{{- end }}
-{{- end }}
+
 
 
 {{- define "helm-base.commonAnnotations" }}
@@ -389,7 +235,7 @@ checksum/config: {{ (concat .Values.configMaps .Values.global.configMaps) | toSt
 {{- if (concat .Values.secrets .Values.global.secrets) }}
 checksum/secrets: {{ (concat .Values.secrets .Values.global.secrets) | toString | sha256sum }}
 {{- end }}
-{{- /* deployment_date: '{{ now | date "2006-01-02 15:04:05" }}' */}}
+deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
 {{- if .Values.podAnnotations }}
 {{- with .Values.podAnnotations }}
 {{- range $k, $v := . }}
@@ -415,20 +261,20 @@ deny all;
 {{- if .Values.serviceAccount.create -}}
 {{- if .Values.serviceAccount.name }}
 {{- tpl .Values.serviceAccount.name $ }}
-{{- else }}
+{{- else -}}
 {{- include "helm-base.fullname" . }}
 {{- end }}
 {{- else -}}
 "default"
 {{- end }}
-{{- end }}
+{{- end -}}
 
 {{- define "helm-base.storageClassName" }}
 {{- default (include "helm-base.fullname" .) (.Values.storageclass.name) }}
 {{- end }}
 
 
-{{- define "helm-base.imagePullSecrets" }}
+{{- define "helm-base.imagePullSecrets" -}}
 {{- if or .Values.imagePullSecrets .Values.global.imagePullSecrets }}
 {{- $pullSecrets := concat .Values.imagePullSecrets .Values.global.imagePullSecrets }}
 imagePullSecrets:
@@ -438,10 +284,17 @@ imagePullSecrets:
 {{- end }}
 {{- end -}}
 
+{{- define "helm-base.topologySpreadConstraints" -}}
+{{- if or .Values.topologySpreadConstraints .Values.global.topologySpreadConstraints }}
+topologySpreadConstraints:
+{{- toYaml (default .Values.global.topologySpreadConstraints .Values.topologySpreadConstraints) | nindent 2 }}
+{{- end }}
+{{- end -}}
+
 {{- define "helm-base.serviceAccount" -}}
 serviceAccount: {{ include "helm-base.serviceAccountName" . }}
 serviceAccountName: {{ include "helm-base.serviceAccountName" . }}
-{{- end }}
+{{- end -}}
 
 {{- define "helm-base.dns" -}}
 {{- if or .Values.dnsPolicy .Values.global.dnsPolicy }}
@@ -454,8 +307,37 @@ dnsConfig:
 {{- end -}}
 
 {{- define "helm-base.hostAliases" -}}
-{{- if or $.Values.hostAliases $.Values.global.hostAliases }}
+{{- if or $.Values.hostAliases }}
 hostAliases:
-{{- toYaml $.Values.hostAliases | indent 8}}
+{{ toYaml $.Values.hostAliases | indent 8}}
 {{- end }}
+{{- end -}}
+
+{{- define "helm-base.ingressHosts" -}}
+{{- $hosts := list -}}
+
+{{- if .Values.ingress.host -}}
+  {{- $hosts = append $hosts (tpl .Values.ingress.host $) -}}
+{{- end -}}
+
+{{- if .Values.ingress.routes -}}
+  {{- range .Values.ingress.routes -}}
+    {{- if .host -}}
+      {{- $hosts = append $hosts (tpl .host $) -}}
+    {{- end -}}
+    {{- if .aliases -}}
+      {{- range .aliases -}}
+        {{- $hosts = append $hosts (tpl . $) -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if .Values.ingress.aliases -}}
+  {{- range .Values.ingress.aliases -}}
+    {{- $hosts = append $hosts (tpl . $) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- join "|" $hosts -}}
 {{- end -}}

@@ -1,0 +1,312 @@
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PrometheusRule" }}
+{{- if and .Values.monitoring .Values.monitoring.rules }}
+{{- range $name, $alerts := .Values.monitoring.rules }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "helm-base.fullname" $ }}-{{ $name }}
+  labels:
+    release: prometheus
+spec:
+  groups:
+{{- if or (eq ($.Values.monitoring.tplConfig | toString) "true") (eq ($.Values.global.monitoring.tplConfig | toString) "true") }}
+{{- tpl (toYaml $alerts.groups) $ | nindent 2 }}
+{{- else }}
+{{- toYaml $alerts.groups | nindent 2 }}
+{{ end -}}
+{{ end -}}
+{{ end -}}
+
+
+{{- $preset_enabled := false }}
+{{- range .Values.monitoring.presets }}
+  {{- if .enabled }}
+    {{- $preset_enabled = true }}
+  {{- end }}
+{{- end }}
+{{- if $preset_enabled -}}
+{{- if and (not $.Values.global.monitoring.slack_channel) (not $.Values.monitoring.slack_channel) }}
+{{- fail "Either global.monitoring.slack_channel or monitoring.slack_channel must be set. If using multiple aliases/subcharts, set global.monitoring.slack_channel" }}
+{{- end }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "helm-base.fullname" $ }}-presets
+  labels:
+    release: prometheus
+spec:
+  groups:
+
+  {{- if $.Values.monitoring.presets.redis.enabled }}
+  {{- $resource_name := $.Values.monitoring.presets.redis.name }}
+  {{- $alert_name := coalesce $.Values.monitoring.presets.redis.alert_name $.Values.monitoring.alert_name }}
+  {{- $alert_severity := coalesce $.Values.monitoring.presets.redis.severity $.Values.monitoring.severity }}
+  - name: "redis-alerts"
+    rules:
+    {{- if not (has "RedisAvailableMemoryLow" $.Values.monitoring.presets.redis.disable_alerts) }}
+    - alert: {{ $alert_name }}RedisAvailableMemoryLow
+      annotations:
+        summary: "{{ $resource_name }} Redis is low on free memory"
+        description: "{{ $resource_name }} Redis has {{`{{`}} $value }} free memory for 15 minutes (less than {{$.Values.monitoring.presets.redis.memory_threshold}}MB)"
+      expr: avg_over_time(aws_elasticache_freeable_memory_average[15m]) * on (cache_cluster_id) group_left(tag_Name)(max by (cache_cluster_id, tag_Name) (aws_resource_info{tag_Name="{{ $resource_name }}"})) < {{ $.Values.monitoring.presets.redis.memory_threshold | int | mul 1048576 }}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.redis.severity_overrides.RedisAvailableMemoryLow $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.redis.labels }}
+        {{- toYaml $.Values.monitoring.presets.redis.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "RedisCPUHigh" $.Values.monitoring.presets.redis.disable_alerts) }}
+    - alert: {{ $alert_name }}RedisCPUHigh
+      annotations:
+        summary: "{{ $resource_name }} Redis CPU is high"
+        description: "{{ $resource_name }} Redis CPU is {{`{{`}} $value }}% for 15 minutes (over {{$.Values.monitoring.presets.redis.cpu_threshold}}% utilization)"
+      expr: avg_over_time(aws_elasticache_cpuutilization_average[15m]) * on (cache_cluster_id) group_left(tag_Name)(max by (cache_cluster_id, tag_Name) (aws_resource_info{tag_Name="{{ $resource_name }}"})) > {{$.Values.monitoring.presets.redis.cpu_threshold}}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.redis.severity_overrides.RedisCPUHigh $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.redis.labels }}
+        {{- toYaml $.Values.monitoring.presets.redis.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "RedisMissing" $.Values.monitoring.presets.redis.disable_alerts) }}
+    - alert: {{ $alert_name }}RedisMissing
+      annotations:
+        summary: "{{ $resource_name }} Redis not found"
+        description: "{{ $resource_name }} Redis not found or is missing the 'Name' tag in AWS. Add the Name tag to resolve"
+      expr: absent(aws_resource_info{tag_Name="{{ $resource_name }}"}) > 0
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.redis.severity_overrides.RedisMissing $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.redis.labels }}
+        {{- toYaml $.Values.monitoring.presets.redis.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+  {{- end }} {{/* end monitoring.presets.redis */}}
+
+  {{- if $.Values.monitoring.presets.rds.enabled }}
+  {{- $resource_name := $.Values.monitoring.presets.rds.name }}
+  {{- $alert_name := coalesce $.Values.monitoring.presets.rds.alert_name $.Values.monitoring.alert_name }}
+  {{- $alert_severity := coalesce $.Values.monitoring.presets.rds.severity $.Values.monitoring.severity }}
+  - name: "database-alerts"
+    rules:
+    {{- if not (has "DatabaseHighCPU" $.Values.monitoring.presets.rds.disable_alerts) }}
+    - alert: {{ $alert_name }}DatabaseHighCPU
+      annotations:
+        summary: "{{ $resource_name }} database high CPU"
+        description: "{{ $resource_name }} database CPU is {{`{{`}} $value }}% for 15 minutes (over {{$.Values.monitoring.presets.rds.cpu_threshold}}% utilization)"
+      expr: avg_over_time(aws_rds_cpuutilization_average{dbinstance_identifier="{{ $resource_name }}"}[15m]) > {{$.Values.monitoring.presets.rds.cpu_threshold}}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.rds.severity_overrides.DatabaseHighCPU $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.rds.labels }}
+        {{- toYaml $.Values.monitoring.presets.rds.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "DatabaseLowMemory" $.Values.monitoring.presets.rds.disable_alerts) }}
+    - alert: {{ $alert_name }}DatabaseLowMemory
+      annotations:
+        summary: "{{ $resource_name }} database low free memory"
+        description: "{{ $resource_name }} database has {{`{{`}} $value }} free memory for 15 minutes (less than {{$.Values.monitoring.presets.rds.memory_threshold}}MB)"
+      expr: avg_over_time(aws_rds_freeable_memory_average{dbinstance_identifier="{{ $resource_name }}"}[15m]) < {{ $.Values.monitoring.presets.rds.memory_threshold | int | mul 1048576 }}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.rds.severity_overrides.DatabaseLowMemory $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.rds.labels }}
+        {{- toYaml $.Values.monitoring.presets.rds.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "DatabaseZeroConnections" $.Values.monitoring.presets.rds.disable_alerts) }}
+    - alert: {{ $alert_name }}DatabaseZeroConnections
+      annotations:
+        summary: "{{ $resource_name }} database high connections"
+        description: "{{ $resource_name }} database has {{`{{`}} $value }} connections for 15 minutes (0 connections)"
+      expr: avg_over_time(aws_rds_database_connections_maximum{dbinstance_identifier="{{ $resource_name }}"}[15m]) < 1
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.rds.severity_overrides.DatabaseZeroConnections $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.rds.labels }}
+        {{- toYaml $.Values.monitoring.presets.rds.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+  {{ end }} {{/* end monitoring.presets.rds */}}
+
+  {{- if $.Values.monitoring.presets.elasticsearch.enabled }}
+  {{- $resource_name := $.Values.monitoring.presets.elasticsearch.name }}
+  {{- $alert_name := coalesce $.Values.monitoring.presets.elasticsearch.alert_name $.Values.monitoring.alert_name }}
+  {{- $alert_severity := coalesce $.Values.monitoring.presets.elasticsearch.severity $.Values.monitoring.severity }}
+  - name: "elasticsearch-alerts"
+    rules:
+    {{- if not (has "ClusterIndexWritesBlocked" $.Values.monitoring.presets.elasticsearch.disable_alerts) }}
+    - alert: {{ coalesce $.Values.monitoring.presets.elasticsearch.alert_name $.Values.monitoring.alert_name }}ClusterIndexWritesBlocked
+      annotations:
+        summary: "{{ $resource_name }} Cluster Index Writes Blocked"
+        description: "{{ $resource_name }} Cluster Index Writes Blocked value is {{`{{`}} $value }}% for 15 minutes (writes are bloceked in ES)"
+      expr: avg_over_time(aws_es_cluster_index_writes_blocked_average{domain_name="{{ $resource_name }}"}[15m]) > 0
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.elasticsearch.severity_overrides.ClusterIndexWritesBlocked $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.elasticsearch.labels }}
+        {{- toYaml $.Values.monitoring.presets.elasticsearch.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "ClusterStatusRed" $.Values.monitoring.presets.elasticsearch.disable_alerts) }}
+    - alert: {{ coalesce $.Values.monitoring.presets.elasticsearch.alert_name $.Values.monitoring.alert_name }}ClusterStatusRed
+      annotations:
+        summary: "{{ $resource_name }} Cluster Status Red"
+        description: "{{ $resource_name }} Cluster Status value is {{`{{`}} $value }}% for 15 minutes (ES Cluster is in RED status)"
+      expr: avg_over_time(aws_es_cluster_status_red_average{domain_name="{{ $resource_name }}"}[15m]) > 0
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.elasticsearch.severity_overrides.ClusterStatusRed $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.elasticsearch.labels }}
+        {{- toYaml $.Values.monitoring.presets.elasticsearch.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "FreeStorageSpace" $.Values.monitoring.presets.elasticsearch.disable_alerts) }}
+    - alert: {{ coalesce $.Values.monitoring.presets.elasticsearch.alert_name $.Values.monitoring.alert_name }}FreeStorageSpace
+      annotations:
+        summary: "{{ $resource_name }} Free Storage Space"
+        description: "{{ $resource_name }} ES cluster has {{`{{`}} $value }} free storage space for 15 minutes (less than  {{$.Values.monitoring.presets.elasticsearch.free_storage_threshold}}MB)"
+      expr: avg_over_time(aws_es_free_storage_space_average{domain_name="{{ $resource_name }}"}[15m]) < {{ $.Values.monitoring.presets.elasticsearch.free_storage_threshold }}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.elasticsearch.severity_overrides.FreeStorageSpace $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.elasticsearch.labels }}
+        {{- toYaml $.Values.monitoring.presets.elasticsearch.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "CPUUtilization" $.Values.monitoring.presets.elasticsearch.disable_alerts) }}
+    - alert: {{ coalesce $.Values.monitoring.presets.elasticsearch.alert_name $.Values.monitoring.alert_name }}CPUUtilization
+      annotations:
+        summary: "{{ $resource_name }} CPU Utilization"
+        description: "{{ $resource_name }} ES cluster has {{`{{`}} $value }} CPU Utilization for 15 minutes (more than  {{$.Values.monitoring.presets.elasticsearch.cpu_threshold}})"
+      expr: avg_over_time(aws_es_cpuutilization_average{domain_name="{{ $resource_name }}"}[15m]) > {{ $.Values.monitoring.presets.elasticsearch.cpu_threshold }}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.elasticsearch.severity_overrides.CPUUtilization $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.elasticsearch.labels }}
+        {{- toYaml $.Values.monitoring.presets.elasticsearch.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "JVMMemoryPressure" $.Values.monitoring.presets.elasticsearch.disable_alerts) }}
+    - alert: {{ coalesce $.Values.monitoring.presets.elasticsearch.alert_name $.Values.monitoring.alert_name }}JVMMemoryPressure
+      annotations:
+        summary: "{{ $resource_name }} JVM Memory Pressure"
+        description: "{{ $resource_name }} ES cluster has {{`{{`}} $value }} JVM Memory Pressure for 15 minutes (more than  {{$.Values.monitoring.presets.elasticsearch.jvm_memory_threshold}})"
+      expr: avg_over_time(aws_es_jvmmemory_pressure_average{domain_name="{{ $resource_name }}"}[15m]) > {{ $.Values.monitoring.presets.elasticsearch.jvm_memory_threshold }}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.elasticsearch.severity_overrides.JVMMemoryPressure $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.elasticsearch.labels }}
+        {{- toYaml $.Values.monitoring.presets.elasticsearch.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+  {{ end }} {{/* end monitoring.presets.elasticsearch */}}
+
+  {{- if $.Values.monitoring.presets.dynamodb.enabled }}
+  {{- $resource_name := $.Values.monitoring.presets.dynamodb.name }}
+  {{- $alert_name := coalesce $.Values.monitoring.presets.dynamodb.alert_name $.Values.monitoring.alert_name }}
+  {{- $alert_severity := coalesce $.Values.monitoring.presets.dynamodb.severity $.Values.monitoring.severity }}
+  - name: "dynamodb-alerts"
+    rules:
+    {{- if not (has "DynamoDBReadCapacityUnitsUnderprovisioned" $.Values.monitoring.presets.dynamodb.disable_alerts) }}
+    - alert: {{ coalesce $.Values.monitoring.presets.dynamodb.alert_name $.Values.monitoring.alert_name }}DynamoDBReadCapacityUnitsUnderprovisioned
+      annotations:
+        summary: "{{ $resource_name }} consumed read capacity units high"
+        description: "{{ $resource_name }} consumed read capacity units is {{`{{`}} $value }}% for 15 minutes (reads are blocked in DynamoDB)"
+      expr: (avg_over_time(aws_dynamodb_consumed_read_capacity_units_index_sum[15m]) / avg_over_time(aws_dynamodb_provisioned_read_capacity_units_index_average[15m])) * 10 > {{$.Values.monitoring.presets.dynamodb.read_capacity_threshold}}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.dynamodb.severity_overrides.DynamoDBReadCapacityUnitsUnderprovisioned $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.dynamodb.labels }}
+        {{- toYaml $.Values.monitoring.presets.dynamodb.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+    {{- if not (has "DynamoDBWriteCapacityUnitsUnderprovisioned" $.Values.monitoring.presets.dynamodb.disable_alerts) }}
+    - alert: {{ coalesce $.Values.monitoring.presets.dynamodb.alert_name $.Values.monitoring.alert_name }}DynamoDBWriteCapacityUnitsUnderprovisioned
+      annotations:
+        summary: "{{ $resource_name }} consumed write capacity units high"
+        description: "{{ $resource_name }} consumed write capacity units is {{`{{`}} $value }}% for 15 minutes (writes are blocked in DynamoDB)"
+      expr: (avg_over_time(aws_dynamodb_consumed_write_capacity_units_index_sum[15m]) / avg_over_time(aws_dynamodb_provisioned_write_capacity_units_index_average[15m])) * 10 > {{$.Values.monitoring.presets.dynamodb.write_capacity_threshold}}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.dynamodb.severity_overrides.DynamoDBWriteCapacityUnitsUnderprovisioned $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.dynamodb.labels }}
+        {{- toYaml $.Values.monitoring.presets.dynamodb.labels | nindent 8 }}
+        {{- end }}
+    {{- end }}
+  {{ end }} {{/* end monitoring.presets.dynamodb */}}
+
+  {{- if $.Values.monitoring.presets.elb.enabled }}
+  {{- $alert_name := coalesce $.Values.monitoring.presets.elb.alert_name $.Values.monitoring.alert_name }}
+  {{- $alert_severity := coalesce $.Values.monitoring.presets.elb.severity $.Values.monitoring.severity }}
+  - name: "elb-alerts"
+    rules:
+    - alert: {{ $alert_name }}ELBUnhealthyTargets
+      annotations:
+        summary: "Load Balancer unhealthy targets"
+        description: "{{`{{`}} $labels.load_balancer_name }} in {{`{{`}} $labels.cluster }} has {{`{{`}} $value }} unhealthy targets"
+      expr: avg_over_time(aws_elb_un_healthy_host_count_average[15m]) > {{ $.Values.monitoring.presets.elb.unhealthy_threshold }}
+      for: 15m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.elb.severity_overrides.ELBUnhealthyTargets $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.elb.labels }}
+        {{- toYaml $.Values.monitoring.presets.elb.labels | nindent 8 }}
+        {{- end }}
+  {{- end }} {{/* end monitoring.presets.elb */}}
+
+  {{- if and $.Values.monitoring.presets.nginx.enabled $.Values.ingress.enabled }}
+  {{- $alert_name := coalesce $.Values.monitoring.presets.nginx.alert_name $.Values.monitoring.alert_name }}
+  {{- $alert_severity := coalesce $.Values.monitoring.presets.nginx.severity $.Values.monitoring.severity }}
+  {{- $ingress_hosts := include "helm-base.ingressHosts" $ }}
+  - name: "nginx-alerts"
+    rules:
+    - alert: {{ $alert_name }}NginxTooMany500s
+      annotations:
+        summary: "Nginx has too many 500 errors."
+        description: "Ingress {{`{{`}} $labels.host }} in namespace {{`{{`}} $labels.exported_namespace }} has {{`{{`}} $value | humanize }} 500 errors in the last 2 minutes"
+      expr: |
+        sum(increase(nginx_ingress_controller_requests{status=~"5..",host=~"{{ $ingress_hosts }}"}[2m])) by (host, exported_namespace, method, path, status) > {{ $.Values.monitoring.presets.nginx.error_threshold }}
+      for: 2m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.nginx.severity_overrides.NginxTooMany500s $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.nginx.labels }}
+        {{- toYaml $.Values.monitoring.presets.nginx.labels | nindent 8 }}
+        {{- end }}
+    - alert: {{ $alert_name }}NginxTooMany400s
+      annotations:
+        summary: "Nginx has too many 400 errors."
+        description: "Ingress {{`{{`}} $labels.host }} in namespace {{`{{`}} $labels.exported_namespace }} has {{`{{`}} $value | humanize }} 400 errors in the last 2 minutes"
+      expr: |
+        sum(increase(nginx_ingress_controller_requests{status=~"4..",host=~"{{ $ingress_hosts }}"}[2m])) by (host, exported_namespace, method, path, status) > {{ $.Values.monitoring.presets.nginx.error_threshold }}
+      for: 2m
+      labels:
+        severity: {{ coalesce $.Values.monitoring.presets.nginx.severity_overrides.NginxTooMany500s $alert_severity }}
+        slack_channel: {{ coalesce $.Values.global.monitoring.slack_channel $.Values.monitoring.slack_channel }}
+        {{- if $.Values.monitoring.presets.nginx.labels }}
+        {{- toYaml $.Values.monitoring.presets.nginx.labels | nindent 8 }}
+        {{- end }}
+  {{- end }} {{/* end monitoring.presets.nginx */}}
+
+{{ end -}} {{/* end monitoring.presets */}}
+
+
+{{ end -}}

@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: service test
+templates:
+  - service.yaml
+tests:
+  - it: should render service when services are defined
+    set:
+      services:
+        - name: web
+          ports:
+            - port: 80
+              targetPort: 8080
+              protocol: TCP
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-web
+      - equal:
+          path: spec.ports[0].port
+          value: 80
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8080
+      - equal:
+          path: spec.ports[0].protocol
+          value: TCP
+
+  - it: should render multiple services
+    set:
+      services:
+        - name: web
+          ports:
+            - port: 80
+              targetPort: 8080
+        - name: api
+          ports:
+            - port: 3000
+              targetPort: 3000
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: Service
+          documentIndex: 0
+      - isKind:
+          of: Service
+          documentIndex: 1
+      - matchRegex:
+          path: metadata.name
+          pattern: RELEASE-NAME-helm-base-(web|api)
+          documentIndex: 0
+      - matchRegex:
+          path: metadata.name
+          pattern: RELEASE-NAME-helm-base-(web|api)
+          documentIndex: 1
+
+  - it: should not render service when no services defined
+    set:
+      services: []
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render service with custom type
+    set:
+      services:
+        - name: web
+          ports:
+            - port: 80
+              targetPort: 8080
+          type: LoadBalancer
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.type
+          value: LoadBalancer

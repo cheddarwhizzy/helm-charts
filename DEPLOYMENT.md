@@ -10,10 +10,10 @@ The repository includes a comprehensive CI/CD pipeline that automatically:
 
 **On Pull Requests:**
 - ✅ Lints Helm charts
+- ✅ Runs helm-unittest unit tests
 - ✅ Tests chart rendering with multiple configurations
 - ✅ Validates Kubernetes manifests
 - ✅ Runs security scans
-- ✅ Tests VirtualService templates
 
 **On Merge to Main:**
 - ✅ Auto-bumps patch version in Chart.yaml
@@ -65,8 +65,11 @@ export CR_GIT_UPLOAD_URL=https://uploads.github.com/
 ### Local Development
 
 ```bash
-# Test template rendering
-./test-virtualservice.sh
+# Run comprehensive helm tests (includes helm-unittest)
+./test-helm.sh
+
+# Run only helm-unittest tests
+helm unittest charts/helm-base
 
 # Package chart locally
 helm package charts/helm-base
@@ -78,7 +81,7 @@ helm install test-release ./helm-base-0.1.26.tgz
 ### Scripts
 
 - `./deploy.sh` - Deploy charts to GitHub Pages
-- `./test-virtualservice.sh` - Test VirtualService templates
+- `./test-helm.sh` - Run comprehensive helm tests with helm-unittest
 - `./manual-upload.sh` - Manual chart upload
 
 ## 🤝 Contributing
@@ -86,7 +89,7 @@ helm install test-release ./helm-base-0.1.26.tgz
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test with `./test-virtualservice.sh`
+4. Test with `./test-helm.sh`
 5. Update version in `Chart.yaml`
 6. Submit a pull request
 

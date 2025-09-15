@@ -1,0 +1,226 @@
+name: Kubernetes Compatibility Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/k8s-compatibility.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/k8s-compatibility.yml'
+  workflow_dispatch:
+    inputs:
+      k8s_version:
+        description: 'Kubernetes version to test (default: latest)'
+        required: false
+        default: 'latest'
+        type: string
+
+env:
+  HELM_VERSION: '3.17.0'
+
+jobs:
+  k8s-compatibility:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k8s_version:
+          - '1.28'
+          - '1.29'
+          - '1.30'
+        chart:
+          - charts/helm-base
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: ${{ env.HELM_VERSION }}
+        
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v${{ matrix.k8s_version }}.0'
+        
+    - name: Test Chart with Kubernetes ${{ matrix.k8s_version }}
+      run: |
+        echo "🔍 Testing chart compatibility with Kubernetes ${{ matrix.k8s_version }}"
+        echo "📦 Chart: ${{ matrix.chart }}"
+        
+        # Test template rendering with different API versions
+        echo "🔧 Testing template rendering..."
+        helm template test ${{ matrix.chart }} --kube-version ${{ matrix.k8s_version }} > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ Template rendering successful with K8s ${{ matrix.k8s_version }}"
+        else
+          echo "❌ Template rendering failed with K8s ${{ matrix.k8s_version }}"
+          exit 1
+        fi
+        
+        # Test with different workload types
+        echo "🔧 Testing workload types with K8s ${{ matrix.k8s_version }}..."
+        
+        for workload in Deployment StatefulSet Job CronJob DaemonSet; do
+          echo "  Testing $workload with K8s ${{ matrix.k8s_version }}..."
+          if [ "$workload" = "CronJob" ]; then
+            helm template test ${{ matrix.chart }} \
+              --set kind=$workload \
+              --set schedule="0 0 * * *" \
+              --kube-version ${{ matrix.k8s_version }} > /dev/null
+          else
+            helm template test ${{ matrix.chart }} \
+              --set kind=$workload \
+              --kube-version ${{ matrix.k8s_version }} > /dev/null
+          fi
+          
+          if [ $? -eq 0 ]; then
+            echo "  ✅ $workload compatible with K8s ${{ matrix.k8s_version }}"
+          else
+            echo "  ❌ $workload incompatible with K8s ${{ matrix.k8s_version }}"
+            exit 1
+          fi
+        done
+        
+        # Test with different feature flags
+        echo "🔧 Testing feature flags with K8s ${{ matrix.k8s_version }}..."
+        
+        # Test with RBAC enabled
+        helm template test ${{ matrix.chart }} \
+          --set rbac.create=true \
+          --kube-version ${{ matrix.k8s_version }} > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "  ✅ RBAC compatible with K8s ${{ matrix.k8s_version }}"
+        else
+          echo "  ❌ RBAC incompatible with K8s ${{ matrix.k8s_version }}"
+          exit 1
+        fi
+        
+        # Test with HPA enabled
+        helm template test ${{ matrix.chart }} \
+          --set hpa.enabled=true \
+          --kube-version ${{ matrix.k8s_version }} > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "  ✅ HPA compatible with K8s ${{ matrix.k8s_version }}"
+        else
+          echo "  ❌ HPA incompatible with K8s ${{ matrix.k8s_version }}"
+          exit 1
+        fi
+        
+        # Test with NetworkPolicy enabled
+        helm template test ${{ matrix.chart }} \
+          --set networkPolicy.enabled=true \
+          --kube-version ${{ matrix.k8s_version }} > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "  ✅ NetworkPolicy compatible with K8s ${{ matrix.k8s_version }}"
+        else
+          echo "  ❌ NetworkPolicy incompatible with K8s ${{ matrix.k8s_version }}"
+          exit 1
+        fi
+        
+        echo "✅ All compatibility tests passed for K8s ${{ matrix.k8s_version }}"
+        
+    - name: Generate Compatibility Report
+      run: |
+        echo "📊 Kubernetes Compatibility Report" > compatibility-report-${{ matrix.k8s_version }}.md
+        echo "=================================" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "**Chart:** ${{ matrix.chart }}" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "**Kubernetes Version:** ${{ matrix.k8s_version }}" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "**Test Date:** $(date)" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "## Test Results" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ Template rendering" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ Deployment workload" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ StatefulSet workload" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ Job workload" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ CronJob workload" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ DaemonSet workload" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ RBAC features" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ HPA features" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "✅ NetworkPolicy features" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "## Summary" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "" >> compatibility-report-${{ matrix.k8s_version }}.md
+        echo "The chart is fully compatible with Kubernetes ${{ matrix.k8s_version }}." >> compatibility-report-${{ matrix.k8s_version }}.md
+        
+    - name: Upload Compatibility Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: compatibility-report-k8s-${{ matrix.k8s_version }}
+        path: compatibility-report-${{ matrix.k8s_version }}.md
+        retention-days: 30
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: k8s-compatibility
+    if: always()
+    
+    steps:
+    - name: Download Compatibility Reports
+      uses: actions/download-artifact@v4
+      with:
+        path: reports
+        
+    - name: Generate Summary Report
+      run: |
+        echo "📊 Kubernetes Compatibility Summary" > k8s-compatibility-summary.md
+        echo "===================================" >> k8s-compatibility-summary.md
+        echo "" >> k8s-compatibility-summary.md
+        echo "**Test Date:** $(date)" >> k8s-compatibility-summary.md
+        echo "**GitHub Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> k8s-compatibility-summary.md
+        echo "" >> k8s-compatibility-summary.md
+        echo "## Test Results by Kubernetes Version" >> k8s-compatibility-summary.md
+        echo "" >> k8s-compatibility-summary.md
+        
+        # Add results for each K8s version
+        for version in 1.28 1.29 1.30; do
+          if [ -f "reports/compatibility-report-k8s-$version/compatibility-report-$version.md" ]; then
+            echo "### Kubernetes $version" >> k8s-compatibility-summary.md
+            echo "" >> k8s-compatibility-summary.md
+            echo "✅ **Status:** Compatible" >> k8s-compatibility-summary.md
+            echo "" >> k8s-compatibility-summary.md
+          else
+            echo "### Kubernetes $version" >> k8s-compatibility-summary.md
+            echo "" >> k8s-compatibility-summary.md
+            echo "❌ **Status:** Test Failed" >> k8s-compatibility-summary.md
+            echo "" >> k8s-compatibility-summary.md
+          fi
+        done
+        
+        echo "## Overall Status" >> k8s-compatibility-summary.md
+        echo "" >> k8s-compatibility-summary.md
+        if [ "${{ needs.k8s-compatibility.result }}" = "success" ]; then
+          echo "🎉 **All Kubernetes versions tested successfully!**" >> k8s-compatibility-summary.md
+        else
+          echo "❌ **Some Kubernetes versions failed compatibility tests.**" >> k8s-compatibility-summary.md
+        fi
+        
+    - name: Upload Summary Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: k8s-compatibility-summary
+        path: k8s-compatibility-summary.md
+        retention-days: 30
+        
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('k8s-compatibility-summary.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## Kubernetes Compatibility Test Results\n\n${summary}`
+          });

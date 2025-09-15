@@ -1,0 +1,167 @@
+name: Helm Chart Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/test.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: '3.17.0'
+        
+    - name: Install helm-unittest plugin
+      run: |
+        helm plugin install https://github.com/helm-unittest/helm-unittest
+        
+    - name: Run Helm Chart Tests
+      run: |
+        echo "🧪 Starting Helm Chart Testing with helm-unittest..."
+        echo "ℹ️  Helm version: $(helm version --short)"
+        
+        # Check if helm-unittest plugin is installed
+        if helm plugin list | grep -q unittest; then
+          echo "✅ helm-unittest plugin is already installed"
+        else
+          echo "❌ helm-unittest plugin not found"
+          exit 1
+        fi
+        
+        # Run helm lint
+        echo "ℹ️  Running helm lint..."
+        helm lint charts/helm-base
+        if [ $? -eq 0 ]; then
+          echo "✅ Chart linting passed"
+        else
+          echo "❌ Chart linting failed"
+          exit 1
+        fi
+        
+        # Run helm-unittest tests
+        echo "ℹ️  Running helm-unittest tests..."
+        helm unittest charts/helm-base
+        if [ $? -eq 0 ]; then
+          echo "✅ Unit tests passed"
+        else
+          echo "❌ Unit tests failed"
+          exit 1
+        fi
+        
+        # Test template rendering with default values
+        echo "ℹ️  Testing template rendering with default values..."
+        helm template test charts/helm-base > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ Default values render successfully"
+        else
+          echo "❌ Default values render failed"
+          exit 1
+        fi
+        
+        # Test different workload types
+        echo "ℹ️  Testing different workload types..."
+        
+        # Test Deployment
+        helm template test charts/helm-base --set kind=Deployment > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ Deployment workload renders successfully"
+        else
+          echo "❌ Deployment workload render failed"
+          exit 1
+        fi
+        
+        # Test StatefulSet
+        helm template test charts/helm-base --set kind=StatefulSet > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ StatefulSet workload renders successfully"
+        else
+          echo "❌ StatefulSet workload render failed"
+          exit 1
+        fi
+        
+        # Test Job
+        helm template test charts/helm-base --set kind=Job > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ Job workload renders successfully"
+        else
+          echo "❌ Job workload render failed"
+          exit 1
+        fi
+        
+        # Test CronJob
+        helm template test charts/helm-base --set kind=CronJob --set schedule="0 0 * * *" > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ CronJob workload renders successfully"
+        else
+          echo "❌ CronJob workload render failed"
+          exit 1
+        fi
+        
+        # Test DaemonSet
+        helm template test charts/helm-base --set kind=DaemonSet > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ DaemonSet workload renders successfully"
+        else
+          echo "❌ DaemonSet workload render failed"
+          exit 1
+        fi
+        
+        # Test with example values if they exist
+        if [ -f "charts/helm-base/values.yaml" ]; then
+          echo "ℹ️  Testing with example values..."
+          helm template test charts/helm-base -f charts/helm-base/values.yaml > /dev/null
+          if [ $? -eq 0 ]; then
+            echo "✅ Example values render successfully"
+          else
+            echo "❌ Example values render failed"
+            exit 1
+          fi
+        fi
+        
+        # Test chart packaging
+        echo "ℹ️  Testing chart packaging..."
+        helm package charts/helm-base --destination /tmp
+        if [ $? -eq 0 ]; then
+          echo "✅ Chart packaging successful"
+          echo "ℹ️  Package created: $(ls /tmp/helm-base-*.tgz)"
+        else
+          echo "❌ Chart packaging failed"
+          exit 1
+        fi
+        
+        echo ""
+        echo "✅ All tests passed! 🎉"
+        echo "ℹ️  Chart is ready for deployment"
+        echo ""
+        echo "📊 Test Summary:"
+        echo "  ✅ Chart linting"
+        echo "  ✅ Unit tests (helm-unittest)"
+        echo "  ✅ Template rendering (default values)"
+        echo "  ✅ Workload types (Deployment, StatefulSet, Job, CronJob, DaemonSet)"
+        echo "  ✅ Example values"
+        echo "  ✅ Chart packaging"
+        echo ""
+        echo "🚀 Chart is production ready!"
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: helm-test-results
+        path: |
+          /tmp/helm-base-*.tgz
+        retention-days: 7

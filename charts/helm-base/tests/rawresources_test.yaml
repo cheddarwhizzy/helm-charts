@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: raw resources test
+templates:
+  - rawresources.yaml
+tests:
+  - it: should render raw resources when defined
+    set:
+      rawResources:
+        my-external-secret:
+          type: ExternalSecret
+          apiVersion: external-secrets.io/v1beta1
+          spec:
+            secretStoreRef:
+              name: vault-secret-store
+              kind: SecretStore
+            target:
+              name: my-secret
+              creationPolicy: Owner
+            data:
+              - secretKey: username
+                remoteRef:
+                  key: database/credentials
+                  property: username
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ExternalSecret
+      - equal:
+          path: metadata.name
+          value: my-external-secret
+      - equal:
+          path: apiVersion
+          value: external-secrets.io/v1beta1
+      - equal:
+          path: spec.secretStoreRef.name
+          value: vault-secret-store
+      - equal:
+          path: spec.target.name
+          value: my-secret
+
+  - it: should not render raw resources when empty
+    set:
+      rawResources: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render multiple raw resources
+    set:
+      rawResources:
+        configmap-1:
+          type: ConfigMap
+          apiVersion: v1
+          data:
+            key1: value1
+        configmap-2:
+          type: ConfigMap
+          apiVersion: v1
+          data:
+            key2: value2
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ConfigMap
+          documentIndex: 0
+      - isKind:
+          of: ConfigMap
+          documentIndex: 1
+      - matchRegex:
+          path: metadata.name
+          pattern: configmap-[12]
+          documentIndex: 0
+      - matchRegex:
+          path: metadata.name
+          pattern: configmap-[12]
+          documentIndex: 1

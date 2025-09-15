@@ -1,81 +1,39 @@
-{{- if and (.Values.containers) (eq .Values.kind "CronJob") }}
-{{- $name := include "helm-base.fullname" . }}
+{{- if and (eq .Values.kind "CronJob") .Values.containers }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
-{{- $volumes := include "helm-base.volumes" . }}
-
-{{- $extraAnnotations := include "helm-base.commonAnnotations" . }}
----
-apiVersion: batch/v1beta1
+{{- $annotations := include "helm-base.commonAnnotations" . }}
+apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ $name }}
+  name: {{ include "helm-base.fullname" . }}
   labels:
-{{ $commonLabels | indent 4 }}
+{{ $commonLabels | nindent 4 }}
+  annotations:
+{{ $annotations | nindent 4 }}
 spec:
-  concurrencyPolicy: {{ .Values.concurrencyPolicy | default "Forbid" }}
-  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit | default 5 }}
-  startingDeadlineSeconds: {{ .Values.startingDeadlineSeconds | default 20 }}
-  schedule: "{{ .Values.schedule }}"
-  successfulJobsHistoryLimit: {{ .Values.startingDeadlineSeconds | default 3 }}
-  suspend: false
+  {{- if .Values.concurrencyPolicy }}
+  concurrencyPolicy: {{ .Values.concurrencyPolicy }}
+  {{- end }}
+  schedule: {{ required "A valid .Values.schedule entry required!" .Values.schedule | quote }}
+  {{- if .Values.successfulJobsHistoryLimit }}
+  successfulJobsHistoryLimit: {{ .Values.successfulJobsHistoryLimit }}
+  {{- end }}
+  {{- if .Values.failedJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.failedJobsHistoryLimit }}
+  {{- end }}
+  {{- if .Values.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ .Values.startingDeadlineSeconds }}
+  {{- end }}
+  suspend: {{ default .Values.suspend false }}
+
   jobTemplate:
-    metadata:
-      creationTimestamp: null
     spec:
+      {{- if .Values.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      {{- end }}
+      {{- if .Values.ttlSecondsAfterFinished }}
+      ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
+      {{- end }}
+      backoffLimit: {{ .Values.backoffLimit }}
       template:
-        metadata:
-          creationTimestamp: null
-          labels:
-            run: {{ $name }}
-          annotations:
-{{ $extraAnnotations | indent 12 }}
-        spec:
-          restartPolicy: {{ .Values.restartPolicy | default "OnFailure" }}
-          hostNetwork: {{ .Values.hostNetwork | default false }}
-          terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 30 }}
-    {{- include "helm-base.hostAliases" . | nindent 12 }}
-    {{- include "helm-base.dns" . | nindent 12 }}
-    {{- include "helm-base.serviceAccount" . | nindent 10 }}
-    {{- include "helm-base.imagePullSecrets" . | nindent 12 }}
-    {{- if .Values.initContainers }}
-          initContainers:
-    {{- range $k, $c := .Values.initContainers }}
-    {{- $new := dict }}
-    {{- range $k, $v := $ }}
-    {{- $_ := set $new $k $v }}
-    {{- end }}
-    {{- range $k, $v := $c }}
-    {{- $_ := set $new $k $v }}
-    {{- end }}
-    {{- include "helm-base.containerBase" $new | indent 10 }}
-    {{- end }}
-    {{- end }}
-
-          containers:
-    {{- range $k, $c := .Values.containers }}
-    {{- $new := dict }}
-    {{- range $k, $v := $ }}
-    {{- $_ := set $new $k $v }}
-    {{- end }}
-    {{- range $k, $v := $c }}
-    {{- $_ := set $new $k $v }}
-    {{- end }}
-    {{- include "helm-base.containerBase" $new | indent 10 }}
-    {{- end }}
-
-        {{- with .Values.nodeSelector }}
-          nodeSelector:
-            {{- tpl (toYaml . ) $ | nindent 8 }}
-          {{- end }}
-        {{- with .Values.affinity }}
-          affinity:
-            {{- tpl (toYaml . ) $ | nindent 8 }}
-        {{- end }}
-        {{- with .Values.tolerations }}
-          tolerations:
-            {{- tpl (toYaml . ) $ | nindent 8 }}
-        {{- end }}
-
-    {{ $volumes | indent 6 }}
-
-{{- end -}}
+        {{- include "helm-base.pod" . | nindent 8 }}
+{{- end }}

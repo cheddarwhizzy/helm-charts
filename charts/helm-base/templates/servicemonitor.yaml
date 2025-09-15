@@ -1,0 +1,35 @@
+{{- $selectorLabels := include "helm-base.selectorLabels" . }}
+{{- $podLabels := include "helm-base.podLabels" . }}
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor" }}
+{{- if and .Values.monitoring .Values.monitoring.slack_channel }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "helm-base.fullname" . }}-kube-state-metrics
+  labels:
+    {{- include "helm-base.commonLabels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kube-state-metrics
+      app.kubernetes.io/instance: prometheus
+  jobLabel: app.kubernetes.io/name
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  endpoints:
+    - port: http
+      interval: 30s
+      scrapeTimeout: 30s
+      honorLabels: true
+      relabelings:
+        - action: replace
+          targetLabel: slack_channel
+          replacement: {{ .Values.monitoring.slack_channel }}
+      metricRelabelings:
+        - sourceLabels: [namespace]
+          regex: "{{ .Release.Namespace }}"
+          action: keep
+{{- end }}
+{{- end }}

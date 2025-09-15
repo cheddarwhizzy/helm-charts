@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: rbac test simple
+templates:
+  - rbac.yaml
+tests:
+  - it: should render RBAC when enabled
+    set:
+      rbac:
+        create: true
+        type: ""
+        rules:
+          - apiGroups: [""]
+            resources: ["pods"]
+            verbs: ["get", "list"]
+          - apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["get", "list", "watch"]
+      serviceAccount:
+        create: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: Role
+      - isKind:
+          of: RoleBinding
+
+  - it: should not render RBAC when disabled
+    set:
+      rbac:
+        create: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render ClusterRole when specified
+    set:
+      rbac:
+        create: true
+        type: "cluster"
+        rules:
+          - apiGroups: [""]
+            resources: ["nodes"]
+            verbs: ["get", "list"]
+      serviceAccount:
+        create: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: ClusterRole
+      - isKind:
+          of: ClusterRoleBinding

@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: pod monitor test
+templates:
+  - podmonitor.yaml
+tests:
+  - it: should render PodMonitor when enabled
+    set:
+      podMonitor:
+        enabled: true
+        interval: 30s
+        path: /metrics
+        port: metrics
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PodMonitor
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.selector.matchLabels.app
+          value: RELEASE-NAME
+      - equal:
+          path: spec.podMetricsEndpoints[0].interval
+          value: 30s
+      - equal:
+          path: spec.podMetricsEndpoints[0].path
+          value: /metrics
+      - equal:
+          path: spec.podMetricsEndpoints[0].port
+          value: metrics
+
+  - it: should not render PodMonitor when disabled
+    set:
+      podMonitor:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render PodMonitor with custom labels
+    set:
+      podMonitor:
+        enabled: true
+        interval: 15s
+        path: /custom-metrics
+        port: custom
+        labels:
+          monitoring: prometheus
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.podMetricsEndpoints[0].interval
+          value: 15s
+      - equal:
+          path: spec.podMetricsEndpoints[0].path
+          value: /custom-metrics
+      - equal:
+          path: metadata.labels.monitoring
+          value: prometheus

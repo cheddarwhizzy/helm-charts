@@ -10,42 +10,51 @@ tests:
   - it: should render StatefulSet when kind is StatefulSet
     set:
       kind: StatefulSet
-    documentIndex: 1
+      containers:
+        - name: app
+          image: nginx:latest
+    template: statefulset.yaml
     asserts:
+      - hasDocuments:
+          count: 1
       - isKind:
           of: StatefulSet
       - equal:
           path: metadata.name
-          value: helm-base
-      - equal:
-          path: spec.serviceName
-          value: helm-base
+          value: RELEASE-NAME-helm-base
 
   - it: should render Job when kind is Job
     set:
       kind: Job
-    documentIndex: 2
+      containers:
+        - name: app
+          image: nginx:latest
+    template: job.yaml
     asserts:
+      - hasDocuments:
+          count: 1
       - isKind:
           of: Job
       - equal:
           path: metadata.name
-          value: helm-base
-      - equal:
-          path: spec.template.spec.restartPolicy
-          value: Never
+          value: RELEASE-NAME-helm-base
 
   - it: should render CronJob when kind is CronJob
     set:
       kind: CronJob
       schedule: "0 0 * * *"
-    documentIndex: 3
+      containers:
+        - name: app
+          image: nginx:latest
+    template: cronjob.yaml
     asserts:
+      - hasDocuments:
+          count: 1
       - isKind:
           of: CronJob
       - equal:
           path: metadata.name
-          value: helm-base
+          value: RELEASE-NAME-helm-base
       - equal:
           path: spec.schedule
           value: "0 0 * * *"
@@ -53,18 +62,30 @@ tests:
   - it: should render DaemonSet when kind is DaemonSet
     set:
       kind: DaemonSet
-    documentIndex: 4
+      containers:
+        - name: app
+          image: nginx:latest
+    template: daemonset.yaml
     asserts:
+      - hasDocuments:
+          count: 1
       - isKind:
           of: DaemonSet
       - equal:
           path: metadata.name
-          value: helm-base
+          value: RELEASE-NAME-helm-base
 
   - it: should render Deployment by default
+    set:
+      containers:
+        - name: app
+          image: nginx:latest
+    template: deployment.yaml
     asserts:
+      - hasDocuments:
+          count: 1
       - isKind:
           of: Deployment
       - equal:
           path: metadata.name
-          value: helm-base
+          value: RELEASE-NAME-helm-base

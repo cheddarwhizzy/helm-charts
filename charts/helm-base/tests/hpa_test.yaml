@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: horizontal pod autoscaler test
+templates:
+  - horizontalpodautoscaler.yaml
+tests:
+  - it: should render HPA when enabled
+    set:
+      hpa:
+        enabled: true
+        minReplicaCount: 2
+        maxReplicaCount: 10
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - equal:
+          path: spec.maxReplicas
+          value: 10
+
+  - it: should not render HPA when disabled
+    set:
+      hpa:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render HPA with custom metrics
+    set:
+      hpa:
+        enabled: true
+        minReplicaCount: 1
+        maxReplicaCount: 5
+        metrics:
+          - type: Resource
+            resource:
+              name: memory
+              target:
+                type: Utilization
+                averageUtilization: 70
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.metrics[0].type
+          value: Resource
+      - equal:
+          path: spec.metrics[0].resource.name
+          value: memory

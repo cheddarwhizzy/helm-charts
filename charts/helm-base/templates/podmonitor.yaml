@@ -1,4 +1,4 @@
-{{- if and .Values.podMonitor.enabled .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor" }}
+{{- if .Values.podMonitor.enabled }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor

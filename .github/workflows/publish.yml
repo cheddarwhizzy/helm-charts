@@ -1,0 +1,210 @@
+name: Publish Helm Charts
+
+on:
+  push:
+    tags:
+      - 'charts-*'
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      chart_version:
+        description: 'Chart version to publish (e.g., 0.1.27)'
+        required: true
+        type: string
+      publish_to_gh_pages:
+        description: 'Publish to GitHub Pages'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  HELM_VERSION: '3.17.0'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: ${{ env.HELM_VERSION }}
+        
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+    - name: Determine Chart Version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "version=${{ github.event.inputs.chart_version }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "push" ] && [[ "${{ github.ref }}" == refs/tags/charts-* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/charts-}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        else
+          # Get current version from Chart.yaml and increment patch
+          CURRENT_VERSION=$(helm show chart charts/helm-base | grep '^version:' | awk '{print $2}')
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+          NEW_VERSION="$major.$minor.$((patch + 1))"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "📦 Chart version: ${{ steps.version.outputs.version }}"
+        
+    - name: Update Chart Version
+      run: |
+        echo "📝 Updating chart version to ${{ steps.version.outputs.version }}"
+        
+        # Update Chart.yaml version
+        sed -i "s/^version:.*/version: ${{ steps.version.outputs.version }}/" charts/helm-base/Chart.yaml
+        
+        # Update Chart.yaml appVersion if it exists
+        if grep -q "^appVersion:" charts/helm-base/Chart.yaml; then
+          sed -i "s/^appVersion:.*/appVersion: ${{ steps.version.outputs.version }}/" charts/helm-base/Chart.yaml
+        fi
+        
+        # Verify the changes
+        echo "📋 Updated Chart.yaml:"
+        cat charts/helm-base/Chart.yaml
+        
+    - name: Package Charts
+      run: |
+        echo "📦 Packaging charts..."
+        
+        # Create packages directory
+        mkdir -p packages
+        
+        # Package the chart
+        helm package charts/helm-base --destination packages/
+        
+        # List packaged charts
+        echo "📦 Packaged charts:"
+        ls -la packages/
+        
+    - name: Generate Chart Repository Index
+      run: |
+        echo "📚 Generating chart repository index..."
+        
+        # Initialize or update the index
+        if [ -f "index.yaml" ]; then
+          helm repo index packages/ --url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }} --merge index.yaml
+        else
+          helm repo index packages/ --url https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        fi
+        
+        # Display the index
+        echo "📋 Generated index.yaml:"
+        cat packages/index.yaml
+        
+    - name: Commit and Push Changes
+      run: |
+        echo "💾 Committing and pushing changes..."
+        
+        # Add changes
+        git add charts/helm-base/Chart.yaml
+        git add packages/
+        git add index.yaml
+        
+        # Commit changes
+        git commit -m "chore: release chart version ${{ steps.version.outputs.version }}"
+        
+        # Push changes
+        git push origin ${{ github.ref_name }}
+        
+    - name: Create Release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      run: |
+        echo "🚀 Creating GitHub release..."
+        
+        # Create release
+        gh release create ${{ github.ref_name }} \
+          --title "Helm Chart Release ${{ steps.version.outputs.version }}" \
+          --notes "Automated release of Helm charts with version ${{ steps.version.outputs.version }}" \
+          packages/helm-base-${{ steps.version.outputs.version }}.tgz \
+          --repo ${{ github.repository }}
+          
+    - name: Setup Pages
+      if: github.event.inputs.publish_to_gh_pages == 'true' || github.event_name == 'push'
+      uses: actions/configure-pages@v4
+      
+    - name: Upload Pages Artifact
+      if: github.event.inputs.publish_to_gh_pages == 'true' || github.event_name == 'push'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: packages/
+        
+    - name: Deploy to GitHub Pages
+      if: github.event.inputs.publish_to_gh_pages == 'true' || github.event_name == 'push'
+      id: deployment
+      uses: actions/deploy-pages@v4
+      
+    - name: Update README
+      run: |
+        echo "📝 Updating README with chart repository information..."
+        
+        # Create a simple README for the chart repository
+        cat > packages/README.md << EOF
+        # Helm Chart Repository
+        
+        This repository contains Helm charts for various applications.
+        
+        ## Adding this repository
+        
+        \`\`\`bash
+        helm repo add ${{ github.event.repository.name }} https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        helm repo update
+        \`\`\`
+        
+        ## Installing charts
+        
+        \`\`\`bash
+        # List available charts
+        helm search repo ${{ github.event.repository.name }}
+        
+        # Install a chart
+        helm install my-release ${{ github.event.repository.name }}/helm-base
+        \`\`\`
+        
+        ## Available Charts
+        
+        | Chart | Version | Description |
+        |-------|---------|-------------|
+        | helm-base | ${{ steps.version.outputs.version }} | A flexible Helm chart for deploying various Kubernetes workloads |
+        
+        ## Chart Repository URL
+        
+        https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        
+        ## Repository Index
+        
+        The repository index is available at: [index.yaml](index.yaml)
+        
+        EOF
+        
+        # Add README to git
+        git add packages/README.md
+        git commit -m "docs: add chart repository README" || echo "No changes to commit"
+        git push origin ${{ github.ref_name }} || echo "Nothing to push"
+        
+    - name: Notify Success
+      run: |
+        echo "🎉 Chart publishing completed successfully!"
+        echo "📦 Chart version: ${{ steps.version.outputs.version }}"
+        echo "📚 Repository URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
+        echo "📋 Index URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/index.yaml"
+        
+        if [ "${{ github.event.inputs.publish_to_gh_pages }}" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
+          echo "🌐 GitHub Pages deployed successfully!"
+        fi

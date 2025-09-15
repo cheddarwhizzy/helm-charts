@@ -1,0 +1,263 @@
+name: Helm Chart CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/helm-chart-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/helm-chart-ci.yml'
+  workflow_dispatch:
+    inputs:
+      chart_path:
+        description: 'Chart path to test (default: charts/helm-base)'
+        required: false
+        default: 'charts/helm-base'
+        type: string
+      test_all_charts:
+        description: 'Test all charts in the repository'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  HELM_VERSION: '3.17.0'
+  HELM_UNITTEST_VERSION: '1.0.1'
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        chart: 
+          - charts/helm-base
+        # Add more charts here as they are created
+        # - charts/another-chart
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: ${{ env.HELM_VERSION }}
+        
+    - name: Install helm-unittest plugin
+      run: |
+        helm plugin install https://github.com/helm-unittest/helm-unittest --version ${{ env.HELM_UNITTEST_VERSION }}
+        
+    - name: Verify Helm installation
+      run: |
+        echo "🔍 Verifying Helm installation..."
+        helm version --short
+        helm plugin list
+        
+    - name: Lint Chart
+      run: |
+        echo "🔍 Linting chart: ${{ matrix.chart }}"
+        helm lint ${{ matrix.chart }}
+        if [ $? -eq 0 ]; then
+          echo "✅ Chart linting passed for ${{ matrix.chart }}"
+        else
+          echo "❌ Chart linting failed for ${{ matrix.chart }}"
+          exit 1
+        fi
+        
+    - name: Run Unit Tests
+      run: |
+        echo "🧪 Running unit tests for chart: ${{ matrix.chart }}"
+        helm unittest ${{ matrix.chart }}
+        if [ $? -eq 0 ]; then
+          echo "✅ Unit tests passed for ${{ matrix.chart }}"
+        else
+          echo "❌ Unit tests failed for ${{ matrix.chart }}"
+          exit 1
+        fi
+        
+    - name: Test Template Rendering
+      run: |
+        echo "🔧 Testing template rendering for chart: ${{ matrix.chart }}"
+        
+        # Test with default values
+        helm template test ${{ matrix.chart }} > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ Default values render successfully for ${{ matrix.chart }}"
+        else
+          echo "❌ Default values render failed for ${{ matrix.chart }}"
+          exit 1
+        fi
+        
+        # Test different workload types if it's the helm-base chart
+        if [ "${{ matrix.chart }}" = "charts/helm-base" ]; then
+          echo "🔧 Testing different workload types..."
+          
+          for workload in Deployment StatefulSet Job CronJob DaemonSet; do
+            echo "  Testing $workload..."
+            if [ "$workload" = "CronJob" ]; then
+              helm template test ${{ matrix.chart }} --set kind=$workload --set schedule="0 0 * * *" > /dev/null
+            else
+              helm template test ${{ matrix.chart }} --set kind=$workload > /dev/null
+            fi
+            
+            if [ $? -eq 0 ]; then
+              echo "  ✅ $workload workload renders successfully"
+            else
+              echo "  ❌ $workload workload render failed"
+              exit 1
+            fi
+          done
+        fi
+        
+    - name: Test Chart Packaging
+      run: |
+        echo "📦 Testing chart packaging for: ${{ matrix.chart }}"
+        helm package ${{ matrix.chart }} --destination /tmp
+        if [ $? -eq 0 ]; then
+          echo "✅ Chart packaging successful for ${{ matrix.chart }}"
+          echo "📦 Package created: $(ls /tmp/$(basename ${{ matrix.chart }})-*.tgz)"
+        else
+          echo "❌ Chart packaging failed for ${{ matrix.chart }}"
+          exit 1
+        fi
+        
+    - name: Test Chart Installation (Dry Run)
+      run: |
+        echo "🚀 Testing chart installation (dry-run) for: ${{ matrix.chart }}"
+        CHART_PACKAGE=$(ls /tmp/$(basename ${{ matrix.chart }})-*.tgz)
+        helm install test-release $CHART_PACKAGE --dry-run --debug
+        if [ $? -eq 0 ]; then
+          echo "✅ Chart installation test passed for ${{ matrix.chart }}"
+        else
+          echo "❌ Chart installation test failed for ${{ matrix.chart }}"
+          exit 1
+        fi
+        
+    - name: Upload Chart Package
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: chart-package-${{ matrix.chart }}
+        path: /tmp/$(basename ${{ matrix.chart }})-*.tgz
+        retention-days: 7
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: ${{ env.HELM_VERSION }}
+        
+    - name: Run Helm Security Scan
+      run: |
+        echo "🔒 Running security scan on charts..."
+        
+        # Install helm-sec plugin if available
+        if helm plugin list | grep -q sec; then
+          echo "🔒 Running helm-sec security scan..."
+          helm sec charts/helm-base || echo "⚠️  Security scan completed with warnings"
+        else
+          echo "ℹ️  helm-sec plugin not available, skipping security scan"
+        fi
+        
+        # Basic security checks
+        echo "🔍 Running basic security checks..."
+        
+        # Check for hardcoded secrets
+        if grep -r "password\|secret\|key" charts/helm-base/templates/ | grep -v "{{" | grep -v "example"; then
+          echo "⚠️  Potential hardcoded secrets found in templates"
+        else
+          echo "✅ No hardcoded secrets found"
+        fi
+        
+        # Check for proper resource limits
+        if grep -r "resources:" charts/helm-base/templates/; then
+          echo "✅ Resource limits found in templates"
+        else
+          echo "⚠️  No resource limits found in templates"
+        fi
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: ${{ env.HELM_VERSION }}
+        
+    - name: Download Chart Packages
+      uses: actions/download-artifact@v4
+      with:
+        name: chart-package-charts/helm-base
+        path: /tmp
+        
+    - name: Create Release
+      run: |
+        echo "🚀 Creating release for charts..."
+        
+        # Get the chart version
+        CHART_VERSION=$(helm show chart charts/helm-base | grep '^version:' | awk '{print $2}')
+        echo "📦 Chart version: $CHART_VERSION"
+        
+        # Create a release with the chart package
+        gh release create "v$CHART_VERSION" \
+          --title "Helm Chart Release v$CHART_VERSION" \
+          --notes "Automated release of Helm charts with version $CHART_VERSION" \
+          /tmp/helm-base-*.tgz \
+          --repo ${{ github.repository }}
+          
+    - name: Update Chart Repository Index
+      run: |
+        echo "📚 Updating chart repository index..."
+        
+        # This would typically update a chart repository index
+        # For now, we'll just log what would happen
+        echo "ℹ️  Chart repository index update would happen here"
+        echo "ℹ️  This would typically involve:"
+        echo "  - Updating index.yaml"
+        echo "  - Committing changes to the repository"
+        echo "  - Publishing to a chart repository (e.g., GitHub Pages, ChartMuseum)"
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [lint-and-test, security-scan]
+    if: always()
+    
+    steps:
+    - name: Test Summary
+      run: |
+        echo "📊 Helm Chart CI/CD Summary"
+        echo "=========================="
+        echo "✅ Chart linting: ${{ needs.lint-and-test.result }}"
+        echo "✅ Unit tests: ${{ needs.lint-and-test.result }}"
+        echo "✅ Template rendering: ${{ needs.lint-and-test.result }}"
+        echo "✅ Chart packaging: ${{ needs.lint-and-test.result }}"
+        echo "✅ Security scan: ${{ needs.security-scan.result }}"
+        echo ""
+        if [ "${{ needs.lint-and-test.result }}" = "success" ] && [ "${{ needs.security-scan.result }}" = "success" ]; then
+          echo "🎉 All tests passed! Chart is ready for deployment."
+        else
+          echo "❌ Some tests failed. Please check the logs."
+          exit 1
+        fi

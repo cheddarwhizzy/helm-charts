@@ -1,179 +1,198 @@
 # Helm Charts Repository
 
-This repository contains reusable Helm charts for Kubernetes deployments.
+Reusable Helm charts for Kubernetes deployments with comprehensive documentation and examples.
 
-## Charts
+## 📋 Table of Contents
 
-### helm-base
+- [Quick Start](#quick-start)
+- [Available Charts](#available-charts)
+- [Usage Examples](#usage-examples)
+- [Documentation](#documentation)
 
-A base Helm chart for DRY (Don't Repeat Yourself) Kubernetes manifests with support for:
-- Deployments and StatefulSets
-- Services (ClusterIP, NodePort, ExternalName)
-- Ingress configurations
-- **VirtualService templates (NEW!)**
-- ConfigMaps and Secrets
-- CronJobs
-- RBAC configurations
-- Network policies
-- And more...
+## 🚀 Quick Start
 
-#### Version: 0.1.23
-
-**Latest Changes:**
-- ✨ Added VirtualService template support for Istio service mesh
-- 🔧 Improved deployment script with better error handling
-- 📝 Enhanced documentation and examples
-
-## Quick Start
-
-### Installation
+### 1. Add Repository
 
 ```bash
-# Add the repository
 helm repo add cheddarwhizzy https://cheddarwhizzy.github.io/helm-charts
-
-# Update repository
 helm repo update
-
-# Install the chart
-helm install my-app cheddarwhizzy/helm-base
 ```
 
-### Using VirtualService (NEW!)
+### 2. Create Your Chart
 
-The chart now supports Istio VirtualService templates for advanced traffic routing:
+```bash
+# Create a new chart directory
+mkdir my-app
+cd my-app
+```
+
+### 3. Setup Chart.yaml
+
+```yaml
+# Chart.yaml
+apiVersion: v2
+name: my-app
+description: A Helm chart for my application
+type: application
+version: 0.1.0
+appVersion: "1.0"
+
+dependencies:
+- name: helm-base
+  version: 0.1.26
+  repository: https://cheddarwhizzy.github.io/helm-charts
+```
+
+### 4. Create values.yaml
 
 ```yaml
 # values.yaml
+# Hello World Nginx Example
+fullnameOverride: hello-world
+replicaCount: 2
+
+image:
+  repository: nginx
+  tag: "1.21"
+  pullPolicy: IfNotPresent
+
+# Create a ConfigMap with custom HTML
+configMaps:
+- name: nginx-html
+  data:
+    index.html: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>Hello from Kubernetes</title>
+      </head>
+      <body>
+          <h1>Hello from Kubernetes!</h1>
+          <p>This page is served from a ConfigMap mounted into an Nginx container.</p>
+          <p>Deployed with helm-base chart.</p>
+      </body>
+      </html>
+
+# Mount the ConfigMap into the container
+containers:
+- name: nginx
+  image: nginx:1.21
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+  volumeMounts:
+  - name: nginx-html
+    mountPath: /usr/share/nginx/html
+    readOnly: true
+
+# Define the volume
+volumes:
+- name: nginx-html
+  configMap:
+    name: nginx-html
+
+# Expose the service
 services:
-  - name: web
-    type: ClusterIP
-    ports:
-      - name: http
-        port: 8080
+- name: http
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
 
-virtualservice:
+# Add ingress for external access
+ingress:
   enabled: true
-  host: "myapp.example.com"
-  gateway: "mesh"
-  port: 8080
-  annotations:
-    custom.annotation: "value"
+  subdomain: hello-world
+  domain: example.com
   routes:
-    - name: default
-      host: "app.example.com"
-      port: 8080
-      path: /
-      corsPolicy:
-        allowOrigins:
-          - exact: "https://example.com"
-        allowMethods:
-          - GET
-          - POST
-        allowHeaders:
-          - authorization
-          - content-type
-      retries:
-        attempts: 3
-        perTryTimeout: 2s
-      timeout: 30s
-  aliases:
-    - "www.example.com"
+  - name: default
+    path: /
+    pathType: Prefix
 ```
 
-## Development
-
-### Prerequisites
-
-- Helm 3.x
-- chart-releaser (optional, for automated releases)
-
-### Local Development
+### 5. Deploy
 
 ```bash
-# Test template rendering
-./test-virtualservice.sh
+# Update dependencies
+helm dependency update
 
-# Package chart locally
-helm package charts/helm-base
+# Install the chart
+helm install my-app .
 
-# Install locally for testing
-helm install test-release ./helm-base-0.1.23.tgz
+# Check the deployment
+kubectl get pods,svc,ingress
 ```
 
-### Deployment
+## 📦 Available Charts
 
-```bash
-# Deploy to GitHub Pages
-./deploy.sh
-```
+### helm-base
 
-The deployment script will:
-1. Clean up previous packages
-2. Validate chart structure
-3. Package the chart
-4. Upload to GitHub Releases (if chart-releaser is available)
-5. Update the chart index
+**Version:** 0.1.26  
+**Description:** Comprehensive base chart for DRY Kubernetes deployments
 
-### Environment Variables
+**Features:**
+- ✅ Deployments, StatefulSets, Jobs, CronJobs, DaemonSets
+- ✅ Services (ClusterIP, NodePort, ExternalName, LoadBalancer)
+- ✅ Ingress configurations
+- ✅ ConfigMaps and Secrets
+- ✅ RBAC configurations
+- ✅ Network policies
+- ✅ External secrets (AWS Parameter Store)
+- ✅ HPA and Pod Disruption Budgets
+- ✅ PodMonitor and VPA
+- ✅ Raw Resources (maximum flexibility)
 
-For chart-releaser functionality, set these environment variables:
+**Documentation:** [helm-base/README.md](./charts/helm-base/README.md)  
+**Configuration:** [helm-base/values.yaml](./charts/helm-base/values.yaml)
 
-```bash
-export CR_TOKEN=<personal_access_token>
-export CR_OWNER=cheddarwhizzy
-export CR_GIT_REPO=helm-charts
-export CR_PACKAGE_PATH=.cr-release-packages
-export CR_GIT_BASE_URL=https://api.github.com/
-export CR_GIT_UPLOAD_URL=https://uploads.github.com/
-```
+## 🎯 Usage Examples
 
-## Chart Configuration
-
-### Key Features
-
-- **Multi-service support**: Deploy multiple services with a single chart
-- **Flexible ingress**: Support for multiple ingress controllers
-- **VirtualService integration**: Istio service mesh support
-- **CronJob support**: Scheduled job deployments
-- **RBAC integration**: Role-based access control
-- **Network policies**: Pod-to-pod communication rules
-
-### Common Values
+### Subchart with Aliases
 
 ```yaml
-# Basic deployment
-replicaCount: 1
-apiVersion: apps/v1
-kind: Deployment
-
-# Services
-services:
-  - name: web
-    type: ClusterIP
-    ports:
-      - name: http
-        port: 8080
-
-# VirtualService (NEW!)
-virtualservice:
-  enabled: true
-  host: "example.com"
-  routes:
-    - name: default
-      path: /
-      port: 8080
+# Chart.yaml
+dependencies:
+- name: helm-base
+  version: 0.1.26
+  repository: https://cheddarwhizzy.github.io/helm-charts
+  alias: app
 ```
 
-## Contributing
+```yaml
+# values.yaml
+app:
+  fullnameOverride: my-app
+  replicaCount: 2
+  image:
+    repository: my-app
+    tag: "latest"
+  # ... app configuration
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test with `./test-virtualservice.sh`
-5. Update version in `Chart.yaml`
-6. Submit a pull request
+migrations:
+  fullnameOverride: my-app-migration
+  kind: Job
+  image:
+    repository: my-app
+    tag: "latest"
+  # ... migration configuration
+```
 
-## License
+### Direct Installation
+
+```bash
+helm install my-app cheddarwhizzy/helm-base -f my-values.yaml
+```
+
+## 📚 Documentation
+
+- **Chart Documentation:** [helm-base/README.md](./charts/helm-base/README.md)
+- **Configuration Reference:** [helm-base/values.yaml](./charts/helm-base/values.yaml)
+- **Deployment Guide:** [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Examples:** See `charts/helm-base/examples/` for real-world usage patterns
+
+## 📄 License
 
 This project is licensed under the MIT License.

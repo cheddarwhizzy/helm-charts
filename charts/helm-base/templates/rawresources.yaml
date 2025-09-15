@@ -1,0 +1,37 @@
+{{- if .Values.rawResources }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
+{{- range $name, $resource := .Values.rawResources }}
+---
+apiVersion: {{ $resource.apiVersion }}
+kind: {{ $resource.type }}
+metadata:
+  name: {{ $name }}
+  labels:
+{{ $commonLabels | indent 4 }}
+    {{- if $resource.labels }}
+{{ toYaml $resource.labels | indent 4 }}
+    {{- end }}
+  {{- if or $commonAnnotations $resource.annotations }}
+  annotations:
+{{ $commonAnnotations | indent 4 }}
+    {{- if $resource.annotations }}
+{{ toYaml $resource.annotations | indent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- if $resource.namespace }}
+  namespace: {{ $resource.namespace }}
+  {{- end }}
+{{- /* Create a copy of the resource without metadata fields for the body */}}
+{{- $body := dict }}
+{{- range $key, $value := $resource }}
+  {{- if not (has $key (list "apiVersion" "type" "labels" "annotations" "namespace")) }}
+    {{- $_ := set $body $key $value }}
+  {{- end }}
+{{- end }}
+{{- /* Render the entire body with template support */}}
+{{- if $body }}
+{{ tpl (toYaml $body) $ | nindent 0 }}
+{{- end }}
+{{- end }}
+{{- end }}

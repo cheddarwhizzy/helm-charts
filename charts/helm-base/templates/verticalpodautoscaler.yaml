@@ -1,0 +1,48 @@
+{{- if and .Values.vpa.enabled .Capabilities.APIVersions.Has "autoscaling.k8s.io/v1/VerticalPodAutoscaler" }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: {{ include "helm-base.fullname" . }}
+  labels:
+{{ $commonLabels | indent 4 }}
+    {{- if .Values.vpa.labels }}
+{{ toYaml .Values.vpa.labels | indent 4 }}
+    {{- end }}
+  {{- if .Values.vpa.annotations }}
+  annotations:
+{{ toYaml .Values.vpa.annotations | indent 4 }}
+  {{- end }}
+spec:
+  targetRef:
+    apiVersion: {{ .Values.apiVersion }}
+    kind: {{ .Values.kind }}
+    name: {{ include "helm-base.fullname" . }}
+  {{- if .Values.vpa.updatePolicy }}
+  updatePolicy:
+    updateMode: {{ .Values.vpa.updatePolicy.updateMode | default "Auto" }}
+    {{- if .Values.vpa.updatePolicy.evictionRequirements }}
+    evictionRequirements:
+{{ toYaml .Values.vpa.updatePolicy.evictionRequirements | indent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.vpa.resourcePolicy }}
+  resourcePolicy:
+    {{- if .Values.vpa.resourcePolicy.containerPolicies }}
+    containerPolicies:
+{{ toYaml .Values.vpa.resourcePolicy.containerPolicies | indent 6 }}
+    {{- end }}
+    {{- if .Values.vpa.resourcePolicy.maxAllowed }}
+    maxAllowed:
+{{ toYaml .Values.vpa.resourcePolicy.maxAllowed | indent 6 }}
+    {{- end }}
+    {{- if .Values.vpa.resourcePolicy.minAllowed }}
+    minAllowed:
+{{ toYaml .Values.vpa.resourcePolicy.minAllowed | indent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- if .Values.vpa.recommenders }}
+  recommenders:
+{{ toYaml .Values.vpa.recommenders | indent 4 }}
+  {{- end }}
+{{- end }}

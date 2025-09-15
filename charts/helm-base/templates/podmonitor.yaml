@@ -1,0 +1,68 @@
+{{- if and .Values.podMonitor.enabled .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PodMonitor" }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "helm-base.fullname" . }}
+  labels:
+{{ $commonLabels | indent 4 }}
+    {{- if .Values.podMonitor.labels }}
+{{ toYaml .Values.podMonitor.labels | indent 4 }}
+    {{- end }}
+  {{- if .Values.podMonitor.annotations }}
+  annotations:
+{{ toYaml .Values.podMonitor.annotations | indent 4 }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "helm-base.name" . }}
+      {{- if .Values.podMonitor.selector }}
+{{ toYaml .Values.podMonitor.selector | indent 6 }}
+      {{- end }}
+  podMetricsEndpoints:
+  - port: {{ .Values.podMonitor.port | default "http" }}
+    path: {{ .Values.podMonitor.path | default "/metrics" }}
+    interval: {{ .Values.podMonitor.interval | default "30s" }}
+    scrapeTimeout: {{ .Values.podMonitor.scrapeTimeout | default "10s" }}
+    honorLabels: {{ .Values.podMonitor.honorLabels | default false }}
+    {{- if .Values.podMonitor.relabelings }}
+    relabelings:
+{{ toYaml .Values.podMonitor.relabelings | indent 6 }}
+    {{- end }}
+    {{- if .Values.podMonitor.metricRelabelings }}
+    metricRelabelings:
+{{ toYaml .Values.podMonitor.metricRelabelings | indent 6 }}
+    {{- end }}
+    {{- if .Values.podMonitor.scheme }}
+    scheme: {{ .Values.podMonitor.scheme }}
+    {{- end }}
+    {{- if .Values.podMonitor.tlsConfig }}
+    tlsConfig:
+{{ toYaml .Values.podMonitor.tlsConfig | indent 6 }}
+    {{- end }}
+    {{- if .Values.podMonitor.bearerTokenSecret }}
+    bearerTokenSecret:
+      name: {{ .Values.podMonitor.bearerTokenSecret.name }}
+      key: {{ .Values.podMonitor.bearerTokenSecret.key }}
+    {{- end }}
+    {{- if .Values.podMonitor.basicAuth }}
+    basicAuth:
+      username:
+        name: {{ .Values.podMonitor.basicAuth.username.name }}
+        key: {{ .Values.podMonitor.basicAuth.username.key }}
+      password:
+        name: {{ .Values.podMonitor.basicAuth.password.name }}
+        key: {{ .Values.podMonitor.basicAuth.password.key }}
+    {{- end }}
+  {{- if .Values.podMonitor.namespaceSelector }}
+  namespaceSelector:
+{{ toYaml .Values.podMonitor.namespaceSelector | indent 4 }}
+  {{- end }}
+  {{- if .Values.podMonitor.sampleLimit }}
+  sampleLimit: {{ .Values.podMonitor.sampleLimit }}
+  {{- end }}
+  {{- if .Values.podMonitor.targetLimit }}
+  targetLimit: {{ .Values.podMonitor.targetLimit }}
+  {{- end }}
+{{- end }}

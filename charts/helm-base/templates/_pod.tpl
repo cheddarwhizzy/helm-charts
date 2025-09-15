@@ -31,6 +31,7 @@
 {{ include "helm-base.serviceAccount" . | indent 6 }}
 {{ include "helm-base.imagePullSecrets" . | indent 6 }}
 {{ include "helm-base.topologySpreadConstraints" . | indent 6 }}
+{{ include "helm-base.podSecurityContext" . | indent 6 }}
 
 {{- if .Values.initContainers }}
       initContainers:

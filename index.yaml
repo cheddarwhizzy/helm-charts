@@ -3,6 +3,15 @@ entries:
   helm-base:
   - apiVersion: v1
     appVersion: develop
+    created: "2025-09-15T15:16:55.455161-07:00"
+    description: Base helm chart for DRY Kubernetes manifests
+    digest: 226e1a1c8b9e9f0d56a93dc3bd8bf1ab3a365b7bd7fdb20e65a0a39a85cd915f
+    name: helm-base
+    urls:
+    - https://github.com/cheddarwhizzy/helm-charts/releases/download/0.1.27/helm-base-0.1.27.tgz
+    version: 0.1.27
+  - apiVersion: v1
+    appVersion: develop
     created: "2025-08-26T15:41:38.499857-07:00"
     description: Base helm chart for DRY Kubernetes manifests
     digest: ca2a0fd3f7a1ce1a26b9708f203b8921fa246986b7482b512e22f0ffedd338d1
@@ -100,4 +109,28 @@ entries:
     urls:
     - https://github.com/cheddarwhizzy/helm-charts/releases/download/0.1.17-beta4/helm-base-0.1.17-beta4.tgz
     version: 0.1.17-beta4
-generated: "2025-08-26T15:41:38.498702-07:00"
+  - apiVersion: v1
+    created: "2025-09-15T15:16:55.460079-07:00"
+    description: Chart used to easily create Kubernetes services with minimal boilerplate
+    digest: fb312a6a136175d9449920832ffb8a9213cb47cd528e76211a5c5b0465bd0888
+    name: helm-base
+    urls:
+    - https://github.com/cheddarwhizzy/helm-charts/releases/download/0.1.27/helm-base-0.1.16.tgz
+    version: 0.1.16
+  - apiVersion: v1
+    created: "2025-09-15T15:16:55.456586-07:00"
+    description: Base helm chart
+    digest: db43f0a8b8ec8082eda425c27912fd9705484a91e0a1ad19a13a52c2d6725501
+    name: helm-base
+    urls:
+    - https://github.com/cheddarwhizzy/helm-charts/releases/download/0.1.27/helm-base-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v1
+    created: "2025-09-15T15:16:55.45569-07:00"
+    description: Base helm chart
+    digest: c2da2cd2a15cbd8f7096d190305a8aec988da0edf9078bb8954832c5bf25ae92
+    name: helm-base
+    urls:
+    - https://github.com/cheddarwhizzy/helm-charts/releases/download/0.1.27/helm-base-0.1.0.tgz
+    version: 0.1.0
+generated: "2025-09-15T15:16:55.452753-07:00"

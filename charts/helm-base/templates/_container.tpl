@@ -54,6 +54,8 @@
 {{- else if $.securityContext }}
   securityContext:
 {{ toYaml $.securityContext | nindent 4 }}
+{{- else }}
+{{ include "helm-base.containerSecurityContext" $ | indent 2 }}
 {{- end -}} {{/* End privileged */}}
 
 {{- if or $.env $.Values.env $.Values.global.env $.envFrom }}

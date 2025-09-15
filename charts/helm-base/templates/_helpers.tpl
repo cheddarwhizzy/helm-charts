@@ -313,6 +313,20 @@ hostAliases:
 {{- end }}
 {{- end -}}
 
+{{- define "helm-base.podSecurityContext" -}}
+{{- if .Values.securityContext.podSecurityContext }}
+securityContext:
+{{ toYaml .Values.securityContext.podSecurityContext | indent 2 }}
+{{- end }}
+{{- end -}}
+
+{{- define "helm-base.containerSecurityContext" -}}
+{{- if .Values.securityContext.containerSecurityContext }}
+securityContext:
+{{ toYaml .Values.securityContext.containerSecurityContext | indent 2 }}
+{{- end }}
+{{- end -}}
+
 {{- define "helm-base.ingressHosts" -}}
 {{- $hosts := list -}}
 

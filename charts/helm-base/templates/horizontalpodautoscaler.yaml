@@ -1,6 +1,6 @@
 {{- if .Values.hpa.enabled -}}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
-apiVersion: {{ .Values.hpa.apiVersion }}
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ template "helm-base.fullname" . }}

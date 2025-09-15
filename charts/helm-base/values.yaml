@@ -1,206 +1,215 @@
+# Global configuration applied to all resources
 global:
+  # Image pull secrets for private registries
   imagePullSecrets: []
+  # Global image configuration
   image:
-    # repository: ""
-    tag: latest
+    # repository: "" # Global image repository override
+    tag: latest # Global image tag override
+  # Global configMaps to be created
   configMaps: []
+  # Global secrets to be created
   secrets: []
+  # DNS policy for pods (None, Default, ClusterFirst, ClusterFirstWithHostNet)
   # dnsPolicy: "None"
+  # DNS configuration for custom DNS settings
   # dnsConfig: {}
+  # Global monitoring configuration
+  monitoring:
+    # slack_channel: "" # Global Slack channel for alerts
 
+# Override the chart name
 nameOverride: 
+# Override the full name of the chart
 fullnameOverride: 
-replicaCount: 1
-apiVersion: apps/v1
-kind: Deployment # or StatefulSet
 
+# Number of replicas for the deployment
+replicaCount: 1
+# API version for the deployment resource
+apiVersion: apps/v1
+# Kind of workload (Deployment, StatefulSet, Job, CronJob, or DaemonSet)
+kind: Deployment
+
+# Services configuration - supports multiple services
 services: []
+# Example service configuration:
 # - name: default
 #   type: ClusterIP # NodePort or ExternalName
 #   ports:
 #   - name: gotty
 #     port: 8080
+#     targetPort: 8080
+#     protocol: TCP
 
-applications: {}
-  # global:
-  #   # namespace: 
-  #   image:
-  #     repository: <image>
-  #   repoURL: https://cheddarwhizzy.github.io/helm-charts
-  #   targetRevision: 0.1.17-beta2
-  #   chart: helm-base
-  #   config: |
-  #     fullnameOverride: restake
-  #     replicaCount: 1
-  #     services:
-  #     - name: ui
-  #       type: ClusterIP
-  #       ports:
-  #       - name: restake
-  #         port: 80
-  #     ingress:
-  #       enabled: true
-  #       tls: true
-  #       domain: <domain>
-  #       subdomain: restake
-  #       annotations:
-  #         cert-manager.io/cluster-issuer: letsencrypt-prod
-  #         nginx.ingress.kubernetes.io/limit-rps: "5"
-  #         nginx.ingress.kubernetes.io/limit-rpm: "200"
-  #       routes:
-  #       - name: ui
-  #         host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
-  #         port: 80
-  #         path: /
-  #     volumes:
-  #     - name: src
-  #       emptyDir: {}
-  #     - name: env-file
-  #       secret:
-  #         secretName: env-file
-  #     secrets:
-  #     - name: env-file
-  #       data:
-  #         .env: |
-  #           MNEMONIC=<pass phrase
-  #     containers:
-  #     - name: restake
-  #       image: {{ .Values.applications.global.image.repository }}-APP_NAME
-  #       ports:
-  #       - 80
-  #       waitFor:
-  #         port: 80
-  #         initialDelaySeconds: 5
-  #       volumeMounts:
-  #       - name: src
-  #         mountPath: /app
-  #       - name: env-file
-  #         mountPath: /app/.env
-  #         subPath: .env
-  # some-app:
-  #   namespace: other-namespace
-  # another-service:
-  #   namespace: service-namespace
-
-
+# StatefulSet specific configuration
 statefulSet: {}
-  # updateStrategy: OnDelete
+  # updateStrategy: OnDelete # Update strategy for StatefulSet
+  # serviceName: "" # Service name for StatefulSet
 
-# Optional Cronjobs to deploy with service
-cronjobs: 
-  image: {}
-#     tag: latest
-#     repository: account-service
-  jobs: []
-#     - name: cache-buyside-user-responsiveness
-#       schedule: '0 19 * * *'
-#       command: 
-#         - python
-#         - bin/cache_buyside_user_responsiveness.py
+# Job specific configuration
+backoffLimit: 3 # Number of retries for failed jobs
+activeDeadlineSeconds: 1800 # Maximum time a job can run
 
-# Optional Telemetry configuration for Istio access logs
-telemetry:
-  enabled: false
-  defaultProvider: "envoy"
-  annotations: {}
-  routes: []
-#     - name: access-logs
-#       providers:
-#         - name: envoy
-#       includeRequestHeaders:
-#         - "x-forwarded-for"
-#         - "x-request-id"
-#         - "user-agent"
-#       includeResponseHeaders:
-#         - "x-request-id"
-#         - "content-type"
-#         - "content-length"
-#       filter:
-#         expression: "response.code >= 400"
-
-# Set these overrides in values.yaml
+# CronJob specific configuration
+schedule: "" # Cron schedule expression (required for CronJob)
+concurrencyPolicy: "" # Allow, Forbid, or Replace
+successfulJobsHistoryLimit: 3 # Number of successful jobs to retain
+failedJobsHistoryLimit: 1 # Number of failed jobs to retain
+startingDeadlineSeconds: 0 # Deadline for starting the job
+suspend: false # Suspend the cron job
+ttlSecondsAfterFinished: 0 # TTL for finished jobs
 
 # Volumes for deployments. Must also specify in initContainers/containers below
 volumes: []
+# Example volume configurations:
 # - name: some-volume
 #   hostPath: 
 #     path: /path/to/mount
+#     type: DirectoryOrCreate
 # - name: some-configmap
 #   configMap:
 #     name: configmap-name
+#     defaultMode: 420
+#     items: []
 # - name: some-emptydir
-#   emptyDir: {}
+#   emptyDir:
+#     sizeLimit: "1Gi"
+# - name: ephemeral-storage
+#   ephemeral:
+#     volumeClaimTemplate:
+#       metadata:
+#         labels:
+#           type: ephemeral
+#       spec:
+#         accessModes: ["ReadWriteOnce"]
+#         resources:
+#           requests:
+#             storage: 1Gi
+#         storageClassName: fast-ssd
+# - name: csi-volume
+#   csi:
+#     driver: ebs.csi.aws.com
+#     volumeAttributes:
+#       type: gp3
+#       size: "10Gi"
+#       encrypted: "true"
+#     readOnly: false
+# - name: volume-snapshot
+#   volumeSnapshot:
+#     name: my-snapshot
 # - name: all-in-one
 #   projected:
+#     defaultMode: 420
 #     sources:
 #     - secret:
 #         name: mysecret
 #         items:
 #           - key: username
 #             path: my-group/my-username
+#             mode: 511
 #     - secret:
 #         name: mysecret2
 #         items:
 #           - key: password
 #             path: my-group/my-password
 #             mode: 511
+#     - configMap:
+#         name: myconfig
+#         items:
+#           - key: config
+#             path: config.json
+# - name: generic-ephemeral
+#   genericEphemeral:
+#     volumeClaimTemplate:
+#       metadata:
+#         labels:
+#           type: generic-ephemeral
+#       spec:
+#         accessModes: ["ReadWriteOnce"]
+#         resources:
+#           requests:
+#             storage: 1Gi
+
+# Volume claim templates for StatefulSets
+volumeClaimTemplates: []
+# Example:
+# - metadata:
+#     name: data
+#   spec:
+#     accessModes: ["ReadWriteOnce"]
+#     resources:
+#       requests:
+#         storage: 10Gi
 
 # Config Maps to be mounted as env vars or files in the pods
 configMaps: []
+# Example configmap:
 # - name: some-configmap
 #   data:
 #     config.json: |
 #       {"apiUrl":"https://my.domain.com"}
+#   labels: {} # Optional labels
+#   annotations: {} # Optional annotations
 
 # Secrets to be mounted as env vars or files in the pods
 secrets: []
-  # default:
-  #   enabled: true
-  #   mountPath: /secret-default
-  #   annotations:
-  #     test.secret.annotation: value
-  #   labels:
-  #     test_label: value
-  #   env:
-  #     SECRET_ENV_NAME: ENV_VALUE
-  #   files:
-  #     secret.test.txt: |-
-  #       some text
-
-secretStore:
-  create: false # use default
-  # fullname: aws-parameter-store # default ClusterSecretStore 
-  # name: parameter-store
-  service: ParameterStore
-  region: us-west-2
-
-externalSecrets: []
-# - name: auth # Kubernetes Secret name to be created
+# Example secret configuration:
+# - name: some-secret
+#   type: Opaque
 #   data:
-#     key: auth # key to be created in secret
-#     value: calpass-rds-db-endpoint-dev # ssm-parameter value to be stored as value of key
+#     username: dXNlcm5hbWU= # base64 encoded
+#     password: cGFzc3dvcmQ= # base64 encoded
 
-# Service Account
+# External Secret Store configuration
+secretStore:
+  create: false # Create external secret store
+  # fullname: aws-parameter-store # default ClusterSecretStore 
+  name: "" # Secret store name
+  service: ParameterStore # Service type (ParameterStore, SecretsManager)
+  region: us-west-2 # AWS region
+
+# External Secrets configuration for AWS Parameter Store
+externalSecrets: []
+# Example external secret:
+# - name: auth # Kubernetes Secret name to be created
+#   fullname: custom-secret-name # Override secret name
+#   refreshInterval: 1h # Refresh interval
+#   data:
+#     - key: auth # key to be created in secret
+#       value: calpass-rds-db-endpoint-dev # ssm-parameter value to be stored as value of key
+#   dataFrom: [] # Alternative to data for bulk import
+
+# Service Account configuration
 serviceAccount:
-  create: false
-  # name: default # vault-auth
-  annotations: {}
+  create: false # Create service account
+  # name: default # Service account name (defaults to fullname)
+  annotations: {} # Annotations for service account
 
+# Termination grace period for pods (seconds)
 terminationGracePeriodSeconds: 30
+
+# Image configuration
 image:
-  tag: latest
-  # repository: some.registry.com/my-image
+  tag: latest # Image tag
+  # repository: some.registry.com/my-image # Image repository
+
+# Image pull secrets for private registries
 imagePullSecrets: []
 # - name: some-image-pull-secret
 
+# Environment variables from ConfigMaps or Secrets
 envFrom: {} # mount in additional configMap env vars
+# Example envFrom:
 # - configMapRef:
 #     name: special-config # or fullname: other-service-configmap
 # - secretRef:
 #     name: secret-config # or fullname: other-service-secrets
+
+# Environment variables
 env: {}
   # BRANCH: integration
 
+# Pod affinity configuration
 # affinity: |
 #   podAntiAffinity:
 #     requiredDuringSchedulingIgnoredDuringExecution:
@@ -212,28 +221,114 @@ env: {}
 #           - {{ .Values.serviceName }}
 #       topologyKey: "kubernetes.io/hostname"
 
+# Pod tolerations
 tolerations: []
+# Node selector for pod placement
 nodeSelector: {}
+# Use host network
 hostNetwork: false
+# Use host PID
+hostPID: false
+# Priority class name
+priorityClassName: ""
+# Host aliases for DNS resolution
 hostAliases: []
+# Common annotations applied to all resources
 commonAnnotations: {}
   # deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
+# Pod-specific annotations
+podAnnotations: {}
+# Pod-specific labels
+podLabels: {}
+# Restart policy for pods
+restartPolicy: ""
+
+# Pod Security Standards
+# 
+# POD SECURITY GRADUAL ADOPTION GUIDE:
+# 1. Start with 'baseline' standard (current default)
+# 2. Use 'warn' mode first to see what would be blocked
+# 3. Gradually move to 'enforce' mode as you fix issues
+# 4. Eventually upgrade to 'restricted' standard for maximum security
+#
+# Standards:
+# - privileged: Most permissive (legacy behavior)
+# - baseline: Minimally restrictive (recommended starting point)
+# - restricted: Heavily restricted (maximum security)
+podSecurity:
+  enabled: false # Enable Pod Security Standards
+  standard: baseline # restricted, baseline, privileged (baseline for compatibility)
+  enforce: baseline # Enforcement level (baseline for compatibility)
+  audit: baseline # Audit level
+  warn: baseline # Warning level
+
+# Security contexts (relaxed defaults for backward compatibility)
+# 
+# SECURITY GRADUAL ADOPTION GUIDE:
+# 1. Start with current relaxed defaults (no security contexts applied)
+# 2. Gradually uncomment and configure security settings as your images are updated
+# 3. Recommended progression:
+#    a) First: Enable seccompProfile (RuntimeDefault)
+#    b) Second: Set runAsNonRoot: true
+#    c) Third: Set specific runAsUser/runAsGroup
+#    d) Fourth: Enable readOnlyRootFilesystem (requires writable volume mounts)
+#    e) Fifth: Drop ALL capabilities and add only what's needed
+#    f) Finally: Enable allowPrivilegeEscalation: false
+#
+# For maximum security, uncomment all settings and ensure your containers:
+# - Run as non-root user
+# - Have writable directories mounted as volumes
+# - Don't require privileged operations
+# - Use minimal required capabilities
+securityContext:
+  # Pod-level security context (minimal defaults)
+  podSecurityContext:
+    # runAsNonRoot: true # Uncomment to enforce non-root
+    # runAsUser: 1000 # Uncomment to set specific user
+    # runAsGroup: 1000 # Uncomment to set specific group
+    # fsGroup: 2000 # Uncomment to set file system group
+    # fsGroupChangePolicy: OnRootMismatch # When to change ownership
+    # seccompProfile:
+    #   type: RuntimeDefault # Seccomp profile type
+    # supplementalGroups: [] # Additional groups
+    # sysctls: [] # System controls
+    # seLinuxOptions: {} # SELinux options
+    # windowsOptions: {} # Windows-specific options
+  # Container-level security context (minimal defaults)
+  containerSecurityContext:
+    # allowPrivilegeEscalation: false # Uncomment to disable privilege escalation
+    # readOnlyRootFilesystem: true # Uncomment for read-only root filesystem
+    # runAsNonRoot: true # Uncomment to enforce non-root
+    # runAsUser: 1000 # Uncomment to set specific user
+    # runAsGroup: 1000 # Uncomment to set specific group
+    # capabilities:
+    #   drop:
+    #     - ALL # Drop all capabilities
+    #   add: [] # Add specific capabilities
+    # seccompProfile:
+    #   type: RuntimeDefault # Seccomp profile
+    # seLinuxOptions: {} # SELinux options
+    # windowsOptions: {} # Windows-specific options
+    # procMount: Default # Proc mount type
+
+# Progress deadline for deployment (seconds)
 progressDeadlineSeconds: 180
+# Minimum ready seconds before pod is considered available
 # minReadySeconds: 0
+# Number of old replicas to retain
 revisionHistoryLimit: 10
+
+# Deployment strategy
 strategy:
-  type: RollingUpdate
-  maxUnavailable: 0
-  maxSurge: 
+  type: RollingUpdate # RollingUpdate or Recreate
+  maxUnavailable: 0 # Maximum unavailable pods during update
+  maxSurge: # Maximum surge pods during update
 
-
-storageclass:
-  create: false
-  provisioner: ""
-  name: ""
-
+# Init containers configuration
 initContainers: []
+# Main containers configuration
 containers: []
+# Example container:
 # - name: some-thing
 #   image: registry.domain.com/image:tag
 #   command:
@@ -247,73 +342,103 @@ containers: []
 #     mountPath: /app
 #   - name: some-configmap
 #     mountPath: /etc/myapp
+#   ports:
+#   - containerPort: 8080
+#     name: http
+#   env:
+#   - name: ENV_VAR
+#     value: "value"
+#   resources:
+#     requests:
+#       memory: "64Mi"
+#       cpu: "250m"
+#     limits:
+#       memory: "128Mi"
+#       cpu: "500m"
+#   waitFor:
+#     port: 8080
+#     initialDelaySeconds: 10
+#   startupProbe:
+#     httpGet:
+#       path: /health
+#       port: 8080
+#     initialDelaySeconds: 10
+#     periodSeconds: 5
+#     timeoutSeconds: 5
+#     failureThreshold: 30
+#     successThreshold: 1
+#   livenessProbe:
+#     httpGet:
+#       path: /health
+#       port: 8080
+#       httpHeaders:
+#         - name: Custom-Header
+#           value: "value"
+#     initialDelaySeconds: 30
+#     periodSeconds: 10
+#     timeoutSeconds: 5
+#     failureThreshold: 3
+#     successThreshold: 1
+#   readinessProbe:
+#     httpGet:
+#       path: /ready
+#       port: 8080
+#       httpHeaders:
+#         - name: Custom-Header
+#           value: "value"
+#     initialDelaySeconds: 5
+#     periodSeconds: 5
+#     timeoutSeconds: 5
+#     failureThreshold: 3
+#     successThreshold: 1
 
-lifecycle: {}
-  # postStart:
-  #   exec:
-  #     command: []
-  # preStop:
-  #   exec:
-  #     command: ["/bin/sh","-c","nginx -s quit; while killall -0 nginx; do sleep 1; done"]
-
-
-# Run on lifecycle
-hookvolumes: []
-preHooks: [] # Run as a hook, before "hooks" (e.g. Run additional hooks for values-staging.yaml but not QA's values.yaml)
-hooks: []
-postHooks: [] # Same as preHooks, but run after "hooks"
-# - name: some-hook
-#   onEvent: pre-install,pre-upgrade
-#   weight: -5 # defaults to index (key) in the list of hooks
-#   kind: Job # or ConfigMap
-#   initContainers: [] # Job Only
-#   containers: [] # Job Only
-#   volumes: [] # applied to job spec
 
 # Role based access control. Requires a serviceaccount
 rbac:
-  create: false
+  create: false # Create RBAC resources
   type: "" # default Role or "cluster" for ClusterRole
-  rules: []
+  rules: [] # RBAC rules
+  # Example RBAC rules:
   # - apiGroups: [""]
   #   resources: ["pods", "pods/exec", "pods/log"]
   #   verbs: ["*"]
 
-
+# Horizontal Pod Autoscaler configuration
 hpa:
-  apiVersion: autoscaling/v2beta2
-  enabled: false
+  enabled: false # Enable HPA
   kind: Deployment # or 'StatefulSet'
-  minReplicaCount: 1
-  maxReplicaCount: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      targetAverageUtilization: 80
-  - type: Resource
-    resource:
-      name: memory
-      targetAverageValue: 75
+  minReplicaCount: 1 # Minimum replicas
+  maxReplicaCount: 10 # Maximum replicas
+  metrics: # Scaling metrics
   - type: Resource
     resource:
       name: cpu
       target:
         type: Utilization
-        averageUtilization: 50
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: AverageValue
+        averageValue: "512Mi"
   # - type: Pods
   #   pods:
   #     metricName: http_requests
-  #     targetAverageValue: 10
+  #     target:
+  #       type: AverageValue
+  #       averageValue: "10"
 
+# Pod Disruption Budget configuration
 podDisruptionBudget: 
-  enabled: false
-  minAvailable: 1
-  # maxUnavailable: 1
+  enabled: false # Enable PDB
+  minAvailable: 1 # Minimum available pods
+  # maxUnavailable: 1 # Maximum unavailable pods
 
+# Network Policy configuration
 networkPolicy:
-  enabled: false
-  policy: |
+  enabled: false # Enable network policy (note: template uses 'enable' not 'enabled')
+  policy: | # Network policy specification
     podSelector: {}
     policyTypes:
     - Ingress
@@ -323,14 +448,15 @@ networkPolicy:
           matchLabels:
             nginx: "true"
 
-
+# Ingress configuration
 ingress:
-  enabled: false
-  secretName: 
-  subdomain: 
-  domain: 
-  class: nginx # or 'haproxy'
-  annotations: {}
+  enabled: false # Enable ingress
+  secretName: # TLS secret name
+  subdomain: # Subdomain for the service
+  domain: # Domain for the service
+  class: nginx # Ingress class (nginx, haproxy, etc.)
+  port: 80 # Default port for ingress
+  annotations: {} # Ingress annotations
     # external-dns.alpha.kubernetes.io/target: nginx.lb.domain.com
     # external-dns.alpha.kubernetes.io/ttl: "60"
     # cert-manager.io/cluster-issuer: letsencrypt-prod-http
@@ -340,111 +466,348 @@ ingress:
     # ingress.kubernetes.io/config-backend: |
     #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
     #   http-request deny if !network_allowed
-  routes: []
-  # - name: default
-  #   host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
-  #   port: 3000
-  #   path: /
-  aliases: []
-  tls: false
-  # privateIngressRules: |
+  routes: [] # Ingress routes
+    # Example route:
+    # - name: default
+    #   host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
+    #   port: 3000
+    #   path: /
+    #   pathType: Prefix
+    #   service: web # Service name to route to
+    #   serviceFullName: custom-service # Override service name
+    #   secretName: custom-tls # Override TLS secret
+    #   aliases: [] # Additional host aliases for this route
+    #   annotations: {} # Route-specific annotations
+  aliases: [] # Additional host aliases
+  tls: false # Enable TLS
+  # privateIngressRules: | # Private ingress rules for haproxy
   #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
   #   http-request deny if !network_allowed
 
+# VirtualService configuration for Istio
 virtualservice:
-  enabled: false
-  host: 
-  gateway: 
-  port: 80
-  annotations: {}
-  routes: []
-  # - name: default
-  #   host: "{{ .Values.virtualservice.host }}"
-  #   port: 3000
-  #   path: /
-  #   gateway: mesh
-  #   corsPolicy:
-  #     allowOrigins:
-  #     - exact: "https://example.com"
-  #     allowMethods:
-  #     - GET
-  #     - POST
-  #     allowHeaders:
-  #     - authorization
-  #     - content-type
-  #   retries:
-  #     attempts: 3
-  #     perTryTimeout: 2s
-  #   timeout: 30s
-  aliases: []
+  enabled: false # Enable VirtualService
+  host: # Host for the VirtualService
+  gateway: # Istio gateway
+  port: 80 # Port for the service
+  annotations: {} # VirtualService annotations
+  routes: [] # VirtualService routes
+    # Example route:
+    # - name: default
+    #   host: "{{ .Values.virtualservice.host }}"
+    #   port: 3000
+    #   path: /
+    #   gateway: mesh
+    #   service: web # Service name to route to
+    #   serviceFullName: custom-service # Override service name
+    #   tls: false # Enable TLS for this route
+    #   corsPolicy:
+    #     allowOrigins:
+    #     - exact: "https://example.com"
+    #     allowMethods:
+    #     - GET
+    #     - POST
+    #     allowHeaders:
+    #     - authorization
+    #     - content-type
+    #   retries:
+    #     attempts: 3
+    #     perTryTimeout: 2s
+    #   timeout: 30s
+    #   aliases: [] # Additional host aliases for this route
+    #   annotations: {} # Route-specific annotations
+  aliases: [] # Additional host aliases
 
+# Optional Telemetry configuration for Istio access logs
+telemetry:
+  enabled: false # Enable telemetry configuration
+  defaultProvider: "envoy" # Default telemetry provider
+  annotations: {} # Annotations for telemetry resources
+  routes: [] # Telemetry routes configuration
+    # Example telemetry route:
+    # - name: access-logs
+    #   providers:
+    #     - name: envoy
+    #   filter:
+    #     expression: "response.code >= 400"
+    #   annotations: {} # Route-specific annotations
 
-  # Ingress route multiHostCorsEnabled domains
-  corsAllowedDomains:
-  # - "some.domain.com"
-  # - "www.google.com"
-  # - "localhost:3000"
-  haproxyCorsTemplate: |
-    allow some host
-  nginxCorsTemplate: |
-    if ($http_origin ~* (^https?://([^/]+\.)*({{ $.Values.ingress.corsAllowedDomains | join "|" }}))) {
-        set $cors "true";
-    }
-    if ($request_method = 'OPTIONS') {
-      set $cors "${cors}options";
-    }
-    if ($cors = 'trueoptions') {
-      more_set_headers 'Access-Control-Allow-Origin: $http_origin';
-      more_set_headers 'Access-Control-Allow-Credentials: true';
-      more_set_headers 'Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS';
-      more_set_headers 'Access-Control-Allow-Headers: Authorization,Content-Type,Accept,Origin,User-Agent,DNT,Cache-Control,X-Mx-ReqToken,Keep-Alive,X-Requested-With,If-Modified-Since,Pragma,Expires';
-      more_set_headers 'Access-Control-Max-Age: 1728000';
-      more_set_headers 'Content-Type: text/plain charset=UTF-8';
-      more_set_headers 'Content-Length: 0';
-      return 204;
-    }
-    if ($cors = "true") {
-      more_set_headers 'Access-Control-Allow-Origin: $http_origin';
-      more_set_headers 'Access-Control-Allow-Credentials: true';
-      more_set_headers 'Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS';
-      more_set_headers 'Access-Control-Allow-Headers: Authorization,Content-Type,Accept,Origin,User-Agent,DNT,Cache-Control,X-Mx-ReqToken,Keep-Alive,X-Requested-With,If-Modified-Since,Pragma,Expires';
-    }
+# Storage class configuration
+storageclass:
+  create: false # Create storage class
+  provisioner: "" # Storage provisioner
+  name: "" # Storage class name
+  isDefault: false # Set as default storage class
+  parameters: {} # Storage class parameters
+  reclaimPolicy: Delete # Reclaim policy (Delete, Retain)
+  volumeBindingMode: Immediate # Volume binding mode (Immediate, WaitForFirstConsumer)
 
-  routes: []
-  # - name: default
-  #   path: /
-  #   host: '{{ required "You must provide .Values.ingress.subdomain" .Values.ingress.subdomain }}.{{ required "You must provide .Values.ingress.domain" .Values.ingress.domain }}'
-  #   # annotations:
-  #   port: 4000
+# Custom Resource Definitions
+crds:
+  enabled: false # Enable CRD creation
+  crds: [] # List of CRDs to create
+    # Example CRD:
+    # - name: my-crd
+    #   spec:
+    #     group: example.com
+    #     version: v1
+    #     scope: Namespaced
+    #     names:
+    #       plural: mycrds
+    #       singular: mycrd
+    #       kind: MyCrd
 
-  # dnsPolicy: "None"
-  # dnsConfig:
-  #   nameservers: []
-  #     # - 1.2.3.4
-  #   searches: []
-  #     # - ns1.svc.cluster-domain.example
-  #     # - my.dns.search.suffix
-  #   options: []
-  #     # - name: ndots
-  #     #   value: "2"
-  #     # - name: edns0
+# Raw Resources - Maximum flexibility for custom resources
+# This allows you to define any Kubernetes resource with full YAML support
+# and automatic commonLabels/commonAnnotations injection
+rawResources: {}
+# Example configurations:
+# rawResources:
+#   # ExternalSecret example
+#   my-external-secret:
+#     type: ExternalSecret
+#     apiVersion: external-secrets.io/v1beta1
+#     labels:
+#       app.kubernetes.io/component: secrets
+#     annotations:
+#       description: "External secret for database credentials"
+#     spec:
+#       refreshInterval: 1h
+#       secretStoreRef:
+#         name: aws-secrets-manager
+#         kind: SecretStore
+#       target:
+#         name: database-secret
+#         creationPolicy: Owner
+#       data:
+#       - secretKey: username
+#         remoteRef:
+#           key: database/credentials
+#           property: username
+#       - secretKey: password
+#         remoteRef:
+#           key: database/credentials
+#           property: password
+#
+#   # Custom CRD example
+#   my-custom-resource:
+#     type: MyCustomResource
+#     apiVersion: mycompany.com/v1
+#     spec:
+#       replicas: 3
+#       image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+#       config:
+#         database:
+#           host: "{{ .Values.database.host }}"
+#           port: "{{ .Values.database.port }}"
+#
+#   # Service example with advanced features
+#   my-advanced-service:
+#     type: Service
+#     apiVersion: v1
+#     spec:
+#       type: LoadBalancer
+#       loadBalancerClass: "aws-load-balancer"
+#       externalTrafficPolicy: Local
+#       sessionAffinity: ClientIP
+#       sessionAffinityConfig:
+#         clientIP:
+#           timeoutSeconds: 3600
+#       ports:
+#       - name: http
+#         port: 80
+#         targetPort: 8080
+#         protocol: TCP
+#       - name: https
+#         port: 443
+#         targetPort: 8443
+#         protocol: TCP
+#       selector:
+#         app: {{ include "helm-base.name" . }}
+#
+#   # Role example
+#   my-custom-role:
+#     type: Role
+#     apiVersion: rbac.authorization.k8s.io/v1
+#     rules:
+#     - apiGroups: [""]
+#       resources: ["pods", "pods/log"]
+#       verbs: ["get", "list", "watch"]
+#     - apiGroups: ["apps"]
+#       resources: ["deployments"]
+#       verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+#
+#   # RoleBinding example
+#   my-custom-rolebinding:
+#     type: RoleBinding
+#     apiVersion: rbac.authorization.k8s.io/v1
+#     subjects:
+#     - kind: ServiceAccount
+#       name: {{ include "helm-base.serviceAccountName" . }}
+#       namespace: {{ .Release.Namespace }}
+#     roleRef:
+#       kind: Role
+#       name: my-custom-role
+#       apiGroup: rbac.authorization.k8s.io
 
-# Not Implemented
+# Pod Security Policy (Not Implemented - template is commented out)
 psp:
   enabled: false
 
-# Not Implemented
+# Mutating Webhook Configuration (Not Implemented - template is commented out)
 mutatingWebhookConfiguration:
   enabled: false
 
-# Not Implemented
+# Validating Webhook Configuration (Not Implemented - template is commented out)
 validatingWebhookConfiguration:
   enabled: false
 
-# Not Implemented
-crds:
-  enabled: false
-  # crds:
-  # - name: some-crd
-  #   spec:
-  #   ...
+# Monitoring configuration for Prometheus
+monitoring:
+  slack_channel: "" # Slack channel for alerts
+  alert_name: "" # Base name for alerts
+  severity: warning # Default alert severity
+  tplConfig: false # Enable template processing for rules
+  rules: {} # Custom Prometheus rules
+    # Example:
+    # my-rule:
+    #   groups:
+    #   - name: my-group
+    #     rules:
+    #     - alert: MyAlert
+    #       expr: up == 0
+    #       for: 5m
+    #       labels:
+    #         severity: critical
+    #       annotations:
+    #         summary: "Service is down"
+  presets: # Predefined monitoring presets
+    redis:
+      enabled: false
+      name: "" # Redis cluster name
+      alert_name: "" # Override alert name
+      severity: warning # Override severity
+      memory_threshold: 100 # Memory threshold in MB
+      cpu_threshold: 80 # CPU threshold percentage
+      disable_alerts: [] # List of alerts to disable
+      severity_overrides: {} # Override severity for specific alerts
+      labels: {} # Additional labels
+    rds:
+      enabled: false
+      name: "" # RDS instance name
+      alert_name: "" # Override alert name
+      severity: warning # Override severity
+      memory_threshold: 100 # Memory threshold in MB
+      cpu_threshold: 80 # CPU threshold percentage
+      disable_alerts: [] # List of alerts to disable
+      severity_overrides: {} # Override severity for specific alerts
+      labels: {} # Additional labels
+    elasticsearch:
+      enabled: false
+      name: "" # ES domain name
+      alert_name: "" # Override alert name
+      severity: warning # Override severity
+      free_storage_threshold: 1000 # Free storage threshold in MB
+      cpu_threshold: 80 # CPU threshold percentage
+      jvm_memory_threshold: 80 # JVM memory threshold percentage
+      disable_alerts: [] # List of alerts to disable
+      severity_overrides: {} # Override severity for specific alerts
+      labels: {} # Additional labels
+    dynamodb:
+      enabled: false
+      name: "" # DynamoDB table name
+      alert_name: "" # Override alert name
+      severity: warning # Override severity
+      read_capacity_threshold: 80 # Read capacity threshold percentage
+      write_capacity_threshold: 80 # Write capacity threshold percentage
+      disable_alerts: [] # List of alerts to disable
+      severity_overrides: {} # Override severity for specific alerts
+      labels: {} # Additional labels
+    elb:
+      enabled: false
+      alert_name: "" # Override alert name
+      severity: warning # Override severity
+      unhealthy_threshold: 0 # Unhealthy targets threshold
+      disable_alerts: [] # List of alerts to disable
+      severity_overrides: {} # Override severity for specific alerts
+      labels: {} # Additional labels
+    nginx:
+      enabled: false
+      alert_name: "" # Override alert name
+      severity: warning # Override severity
+      error_threshold: 10 # Error threshold count
+      disable_alerts: [] # List of alerts to disable
+      severity_overrides: {} # Override severity for specific alerts
+      labels: {} # Additional labels
+
+# KEDA (Kubernetes Event Driven Autoscaler) configuration
+keda:
+  enabled: false # Enable KEDA ScaledObject
+  pollingInterval: 30 # Polling interval in seconds
+  minReplicaCount: 1 # Minimum replicas
+  maxReplicaCount: 10 # Maximum replicas
+  cooldownPeriod: 300 # Cooldown period in seconds
+  triggers: [] # KEDA triggers
+    # Example:
+    # - type: prometheus
+    #   metadata:
+    #     serverAddress: http://prometheus:9090
+    #     metricName: http_requests_per_second
+    #     threshold: '10'
+
+# PodMonitor configuration for Prometheus
+podMonitor:
+  enabled: false # Enable PodMonitor
+  port: http # Port name to scrape
+  path: /metrics # Metrics path
+  interval: 30s # Scrape interval
+  scrapeTimeout: 10s # Scrape timeout
+  honorLabels: false # Honor labels from target
+  scheme: http # Scheme (http/https)
+  labels: {} # Additional labels
+  annotations: {} # Additional annotations
+  selector: {} # Pod selector overrides
+  namespaceSelector: {} # Namespace selector
+  sampleLimit: 0 # Sample limit (0 = no limit)
+  targetLimit: 0 # Target limit (0 = no limit)
+  relabelings: [] # Relabeling rules
+  metricRelabelings: [] # Metric relabeling rules
+  tlsConfig: {} # TLS configuration
+  bearerTokenSecret: {} # Bearer token secret
+  basicAuth: {} # Basic auth configuration
+
+# Vertical Pod Autoscaler configuration
+vpa:
+  enabled: false # Enable VPA
+  labels: {} # Additional labels
+  annotations: {} # Additional annotations
+  updatePolicy:
+    updateMode: Auto # Auto, Initial, Off
+    evictionRequirements: [] # Eviction requirements
+  resourcePolicy:
+    containerPolicies: [] # Container-specific policies
+      # Example:
+      # - containerName: "*"
+      #   maxAllowed:
+      #     cpu: "2"
+      #     memory: "4Gi"
+      #   minAllowed:
+      #     cpu: "100m"
+      #     memory: "128Mi"
+    maxAllowed: {} # Global max allowed resources
+    minAllowed: {} # Global min allowed resources
+  recommenders: [] # Custom recommenders
+
+# DNS policy for pods
+# dnsPolicy: "None"
+# DNS configuration
+# dnsConfig:
+#   nameservers: []
+#     # - 1.2.3.4
+#   searches: []
+#     # - ns1.svc.cluster-domain.example
+#     # - my.dns.search.suffix
+#   options: []
+#     # - name: ndots
+#     #   value: "2"
+#     # - name: edns0

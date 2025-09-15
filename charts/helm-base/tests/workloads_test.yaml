@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: workload types test
+templates:
+  - deployment.yaml
+  - statefulset.yaml
+  - job.yaml
+  - cronjob.yaml
+  - daemonset.yaml
+tests:
+  - it: should render StatefulSet when kind is StatefulSet
+    set:
+      kind: StatefulSet
+    documentIndex: 1
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: metadata.name
+          value: helm-base
+      - equal:
+          path: spec.serviceName
+          value: helm-base
+
+  - it: should render Job when kind is Job
+    set:
+      kind: Job
+    documentIndex: 2
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: metadata.name
+          value: helm-base
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: Never
+
+  - it: should render CronJob when kind is CronJob
+    set:
+      kind: CronJob
+      schedule: "0 0 * * *"
+    documentIndex: 3
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: metadata.name
+          value: helm-base
+      - equal:
+          path: spec.schedule
+          value: "0 0 * * *"
+
+  - it: should render DaemonSet when kind is DaemonSet
+    set:
+      kind: DaemonSet
+    documentIndex: 4
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: metadata.name
+          value: helm-base
+
+  - it: should render Deployment by default
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: helm-base

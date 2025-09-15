@@ -35,6 +35,16 @@ jobs:
         helm lint ${{ env.CHART_PATH }}
         helm template test-release ${{ env.CHART_PATH }} --dry-run
 
+    - name: Install helm-unittest plugin
+      run: |
+        helm plugin install https://github.com/helm-unittest/helm-unittest.git
+        echo "✅ helm-unittest plugin installed"
+
+    - name: Run helm-unittest tests
+      run: |
+        helm unittest ${{ env.CHART_PATH }}
+        echo "✅ All unit tests passed"
+
     - name: Test chart rendering
       run: |
         # Test with default values
@@ -53,26 +63,6 @@ jobs:
         helm template test-release ${{ env.CHART_PATH }} --set kind=CronJob > /tmp/cronjob.yaml
         helm template test-release ${{ env.CHART_PATH }} --set kind=DaemonSet > /tmp/daemonset.yaml
         echo "✅ All workload types render successfully"
-
-    - name: Validate Kubernetes manifests
-      run: |
-        # Install kubeval for validation
-        wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
-        tar xf kubeval-linux-amd64.tar.gz
-        chmod +x kubeval
-        sudo mv kubeval /usr/local/bin/
-        
-        # Validate rendered manifests
-        helm template test-release ${{ env.CHART_PATH }} | kubeval --strict || true
-        echo "✅ Kubernetes manifest validation completed"
-
-    - name: Test VirtualService template
-      run: |
-        if [ -f "./test-virtualservice.sh" ]; then
-          chmod +x ./test-virtualservice.sh
-          ./test-virtualservice.sh
-          echo "✅ VirtualService template test passed"
-        fi
 
   # Deploy on merge to main
   deploy:

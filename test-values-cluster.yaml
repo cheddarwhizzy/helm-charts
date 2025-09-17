@@ -1,0 +1,7 @@
+rbac:
+  create: true
+  type: "cluster"
+  rules:
+    - apiGroups: [""]
+      resources: ["nodes"]
+      verbs: ["get", "list"]

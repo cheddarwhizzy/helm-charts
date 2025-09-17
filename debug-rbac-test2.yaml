@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: debug rbac test 2
+templates:
+  - rbac.yaml
+tests:
+  - it: debug RBAC output with service account
+    set:
+      rbac:
+        create: true
+        type: ""
+        rules:
+          - apiGroups: [""]
+            resources: ["pods"]
+            verbs: ["get", "list"]
+          - apiGroups: ["apps"]
+            resources: ["deployments"]
+            verbs: ["get", "list", "watch"]
+      serviceAccount:
+        create: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - isKind:
+          of: Role
+          documentIndex: 0
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+          documentIndex: 0
+      - equal:
+          path: rules[0].apiGroups[0]
+          value: ""
+          documentIndex: 0
+      - equal:
+          path: rules[0].resources[0]
+          value: pods
+          documentIndex: 0
+      - isKind:
+          of: RoleBinding
+          documentIndex: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+          documentIndex: 1

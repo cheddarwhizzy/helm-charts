@@ -12,6 +12,10 @@ metadata:
   name: {{ template "helm-base.fullname" . }}
   labels:
 {{- $selectorLabels | nindent 4 }}
+  {{- if $commonAnnotations }}
+  annotations:
+{{- $commonAnnotations | nindent 4 }}
+  {{- end }}
 spec:
   backoffLimit: {{ $.Values.backoffLimit | default 3 }}
   activeDeadlineSeconds: {{ $.Values.activeDeadlineSeconds | default 1800 }}

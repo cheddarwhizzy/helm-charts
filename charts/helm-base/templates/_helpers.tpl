@@ -3,7 +3,7 @@
 Expand the name of the chart.
 */}}
 {{- define "helm-base.name" -}}
-{{- default $.Release.Name $.Values.serviceName | trunc 63 | trimSuffix "-" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
 {{/*

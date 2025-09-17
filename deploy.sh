@@ -58,7 +58,45 @@ if [ "${PACKAGE_VERSION}" = "$(basename "${PACKAGE_FILE}")" ]; then
     echo "❌ Error: Could not extract version from package filename"
     exit 1
 fi
-echo "📋 Package version: ${PACKAGE_VERSION}"
+echo "📋 Initial package version: ${PACKAGE_VERSION}"
+
+# Function to increment patch version (semver compliant)
+# Increments the patch version: 0.1.27 -> 0.1.28
+increment_patch_version() {
+    local version=$1
+    local major=$(echo "$version" | cut -d. -f1)
+    local minor=$(echo "$version" | cut -d. -f2)
+    local patch=$(echo "$version" | cut -d. -f3)
+    echo "${major}.${minor}.$((patch + 1))"
+}
+
+# Check if release already exists and increment version if needed
+if command -v gh &> /dev/null && gh auth status &>/dev/null; then
+    CURRENT_VERSION="${PACKAGE_VERSION}"
+    while gh release view "${PACKAGE_VERSION}" --repo "${REPO_OWNER}/${REPO_NAME}" &>/dev/null; do
+        echo "⚠️  Release ${PACKAGE_VERSION} already exists, incrementing patch version..."
+        PACKAGE_VERSION=$(increment_patch_version "${PACKAGE_VERSION}")
+        echo "🔄 Trying version: ${PACKAGE_VERSION}"
+    done
+    
+    if [ "${PACKAGE_VERSION}" != "${CURRENT_VERSION}" ]; then
+        echo "📝 Updating Chart.yaml to version ${PACKAGE_VERSION}..."
+        sed -i.bak "s/^version: .*/version: ${PACKAGE_VERSION}/" "${CHART_PATH}/Chart.yaml"
+        
+        echo "📦 Re-packaging chart with new version..."
+        helm package "${CHART_PATH}" --destination "${PACKAGE_DIR}" --force
+        
+        # Update package file reference
+        PACKAGE_FILE="${PACKAGE_DIR}/helm-base-${PACKAGE_VERSION}.tgz"
+        
+        # Clean up backup file
+        rm -f "${CHART_PATH}/Chart.yaml.bak"
+        
+        echo "✅ Chart re-packaged: $(basename "${PACKAGE_FILE}")"
+    fi
+fi
+
+echo "📋 Final package version: ${PACKAGE_VERSION}"
 
 # Create GitHub release
 echo "🏷️  Creating GitHub release ${PACKAGE_VERSION}..."
@@ -72,19 +110,14 @@ if command -v gh &> /dev/null; then
         exit 1
     fi
     
-    # Check if release already exists
-    if gh release view "${PACKAGE_VERSION}" --repo "${REPO_OWNER}/${REPO_NAME}" &>/dev/null; then
-        echo "⚠️  Warning: Release ${PACKAGE_VERSION} already exists"
-    else
-        # Create new release
-        gh release create "${PACKAGE_VERSION}" \
-            --repo "${REPO_OWNER}/${REPO_NAME}" \
-            --title "${CHART_NAME}-${PACKAGE_VERSION}" \
-            --notes "Base helm chart for DRY Kubernetes manifests - Version ${PACKAGE_VERSION}" \
-            --draft=false \
-            --prerelease=false
-        echo "✅ GitHub release ${PACKAGE_VERSION} created"
-    fi
+    # Create new release (version should be unique after auto-increment logic above)
+    gh release create "${PACKAGE_VERSION}" \
+        --repo "${REPO_OWNER}/${REPO_NAME}" \
+        --title "${CHART_NAME}-${PACKAGE_VERSION}" \
+        --notes "Base helm chart for DRY Kubernetes manifests - Version ${PACKAGE_VERSION}" \
+        --draft=false \
+        --prerelease=false
+    echo "✅ GitHub release ${PACKAGE_VERSION} created"
 else
     echo "⚠️  Warning: GitHub CLI (gh) not found, skipping release creation"
 fi

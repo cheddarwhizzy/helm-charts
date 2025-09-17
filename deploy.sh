@@ -84,7 +84,7 @@ if command -v gh &> /dev/null && gh auth status &>/dev/null; then
         sed -i.bak "s/^version: .*/version: ${PACKAGE_VERSION}/" "${CHART_PATH}/Chart.yaml"
         
         echo "📦 Re-packaging chart with new version..."
-        helm package "${CHART_PATH}" --destination "${PACKAGE_DIR}" --force
+        helm package "${CHART_PATH}" --destination "${PACKAGE_DIR}"
         
         # Update package file reference
         PACKAGE_FILE="${PACKAGE_DIR}/helm-base-${PACKAGE_VERSION}.tgz"

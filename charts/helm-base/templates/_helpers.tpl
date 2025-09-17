@@ -15,7 +15,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
-{{- $name := default .Chart.Name .Values.nameOverride -}}
+{{- $name := default .Values.nameOverride .Chart.Name -}}
 {{- if contains $name .Release.Name -}}
 {{- .Release.Name | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -38,7 +38,7 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 
 {{- define "helm-base.commonLabels" -}}
 app: {{ include "helm-base.name" . }}
-release: {{ .Chart.Name }}
+release: {{ include "helm-base.name" . }}
 {{- end -}}
 
 {{- define "helm-base.podLabels" -}}
@@ -49,7 +49,7 @@ release: {{ .Chart.Name }}
 
 {{- define "helm-base.selectorLabels" }}
 app: {{ include "helm-base.name" . }}
-release: {{ .Chart.Name }}
+release: {{ include "helm-base.name" . }}
 {{ end -}}
 
 {{/*

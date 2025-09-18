@@ -2,7 +2,6 @@
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $podLabels := include "helm-base.podLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
-{{- $volumes := include "helm-base.volumes" . }}
 
 apiVersion: apps/v1
 kind: StatefulSet

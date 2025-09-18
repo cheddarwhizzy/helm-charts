@@ -2,7 +2,6 @@
 
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $podLabels := include "helm-base.podLabels" . }}
-{{- $volumes := include "helm-base.volumes" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
 {{- $podAnnotations := include "helm-base.podAnnotations" . }}
 
@@ -12,16 +11,10 @@ metadata:
   name: {{ template "helm-base.fullname" . }}
   labels:
 {{- $selectorLabels | nindent 4 }}
-  {{- if $commonAnnotations }}
-  annotations:
-{{- $commonAnnotations | nindent 4 }}
-  {{- end }}
 spec:
   backoffLimit: {{ $.Values.backoffLimit | default 3 }}
   activeDeadlineSeconds: {{ $.Values.activeDeadlineSeconds | default 1800 }}
   template:
     {{- include "helm-base.pod" . }}
-
-{{ $volumes | indent 6 }}
 
 {{- end }}

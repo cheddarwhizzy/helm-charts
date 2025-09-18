@@ -33,6 +33,8 @@
 {{ include "helm-base.topologySpreadConstraints" . | indent 6 }}
 {{ include "helm-base.podSecurityContext" . | indent 6 }}
 
+{{ include "helm-base.volumes" . | indent 6 }}
+
 {{- if .Values.initContainers }}
       initContainers:
 {{- range $k, $c := .Values.initContainers }}

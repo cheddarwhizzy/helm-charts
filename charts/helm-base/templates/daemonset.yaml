@@ -2,7 +2,6 @@
 
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
-{{- $volumes := include "helm-base.volumes" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
 {{- $podAnnotations := include "helm-base.podAnnotations" . }}
 
@@ -22,7 +21,5 @@ spec:
 {{ $selectorLabels | indent 6 }}
   template:
     {{- include "helm-base.pod" . }}
-
-{{ $volumes | indent 6 }}
 
 {{- end }}

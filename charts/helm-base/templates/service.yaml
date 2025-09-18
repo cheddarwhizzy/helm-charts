@@ -16,6 +16,9 @@ metadata:
 {{ $commonLabels | indent 4 }}
 spec:
   type: {{ $type }}
+  {{- if $s.clusterIP }}
+  clusterIP: {{ $s.clusterIP }}
+  {{- end }}
   {{- if eq $type "ExternalName" }}
   externalName: "{{ required "A valid .Values.services[$k].externalName entry required!" (tpl $s.externalName $) }}"
   {{- end }}

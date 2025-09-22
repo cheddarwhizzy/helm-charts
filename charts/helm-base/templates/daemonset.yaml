@@ -3,7 +3,6 @@
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
-{{- $podAnnotations := include "helm-base.podAnnotations" . }}
 
 apiVersion: {{ .Values.apiVersion }}
 kind: {{ .Values.kind }}
@@ -11,6 +10,8 @@ metadata:
   name: {{ template "helm-base.fullname" . }}
   labels:
 {{ $selectorLabels | indent 4 }}
+  annotations:
+{{- $commonAnnotations | nindent 4 }}
 spec:
   {{- if $.Values.minReadySeconds }}
   minReadySeconds: {{ $.Values.minReadySeconds }}

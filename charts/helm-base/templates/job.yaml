@@ -1,9 +1,7 @@
 {{- if and (.Values.containers) (eq .Values.kind "Job") }}
 
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
-{{- $podLabels := include "helm-base.podLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
-{{- $podAnnotations := include "helm-base.podAnnotations" . }}
 
 apiVersion: batch/v1
 kind: Job
@@ -11,6 +9,8 @@ metadata:
   name: {{ template "helm-base.fullname" . }}
   labels:
 {{- $selectorLabels | nindent 4 }}
+  annotations:
+{{- $commonAnnotations | nindent 4 }}
 spec:
   backoffLimit: {{ $.Values.backoffLimit | default 3 }}
   activeDeadlineSeconds: {{ $.Values.activeDeadlineSeconds | default 1800 }}

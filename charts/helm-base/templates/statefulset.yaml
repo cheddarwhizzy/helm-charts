@@ -9,6 +9,8 @@ metadata:
   name: {{ include "helm-base.fullname" . }}
   labels:
 {{ $selectorLabels | indent 4 }}
+  annotations:
+{{- $commonAnnotations | nindent 4 }}
 spec:
   updateStrategy:
     type: {{ default "RollingUpdate" .Values.statefulSet.updateStrategy }}

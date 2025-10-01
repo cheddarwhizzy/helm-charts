@@ -17,6 +17,7 @@ global:
   # Global monitoring configuration
   monitoring:
     # slack_channel: "" # Global Slack channel for alerts
+  externalSecrets: {}
 
 # Override the chart name
 nameOverride: 
@@ -169,15 +170,11 @@ secretStore:
   region: us-west-2 # AWS region
 
 # External Secrets configuration for AWS Parameter Store
-externalSecrets: []
-# Example external secret:
-# - name: auth # Kubernetes Secret name to be created
-#   fullname: custom-secret-name # Override secret name
-#   refreshInterval: 1h # Refresh interval
-#   data:
-#     - key: auth # key to be created in secret
-#       value: calpass-rds-db-endpoint-dev # ssm-parameter value to be stored as value of key
-#   dataFrom: [] # Alternative to data for bulk import
+externalSecrets: {}
+  # auth: # Kubernetes Secret name to be created
+  #   data:
+  #     SOME_ENV_VAR: /ci/<service-name>/some_env_var
+
 
 # Service Account configuration
 serviceAccount:

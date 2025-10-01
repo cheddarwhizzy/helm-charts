@@ -35,12 +35,13 @@ kind: Deployment
 services: []
 # Example service configuration:
 # - name: default
-#   type: ClusterIP # NodePort or ExternalName
+#   type: ClusterIP # ClusterIP, NodePort, LoadBalancer, or ExternalName
 #   ports:
 #   - name: gotty
 #     port: 8080
 #     targetPort: 8080
 #     protocol: TCP
+#     nodePort: 30080 # Optional: specify nodePort for NodePort services
 
 # StatefulSet specific configuration
 statefulSet: {}

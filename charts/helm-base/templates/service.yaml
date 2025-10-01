@@ -29,6 +29,9 @@ spec:
     targetPort: {{ default $port.port $port.targetPort }}
     protocol: {{ default "TCP" $s.protocol }}
     name: "{{ default $port.port $port.name }}"
+    {{- if $port.nodePort }}
+    nodePort: {{ $port.nodePort }}
+    {{- end }}
   {{- end}}
   selector:
 {{- if $s.selectorLabels }}

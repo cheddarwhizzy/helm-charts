@@ -58,10 +58,17 @@
 {{ include "helm-base.containerSecurityContext" $ | indent 2 }}
 {{- end -}} {{/* End privileged */}}
 
-{{- if or $.env $.Values.env $.Values.global.env $.envFrom }}
-{{- if $.envFrom  }}
+{{- if or $.env $.Values.env $.Values.global.env $.envFrom $.Values.envFrom }}
+{{- $envFromList := list }}
+{{- if $.Values.envFrom }}
+{{- $envFromList = concat $envFromList $.Values.envFrom }}
+{{- end }}
+{{- if $.envFrom }}
+{{- $envFromList = concat $envFromList $.envFrom }}
+{{- end }}
+{{- if $envFromList }}
   envFrom:
-{{- range $_, $e := $.envFrom }}
+{{- range $_, $e := $envFromList }}
   {{- if $e.configMapRef }}
   - configMapRef:
       name: {{if $e.configMapRef.fullname }}{{ $e.configMapRef.fullname }}{{else}}{{ $name }}-{{ $e.configMapRef.name }}{{end}}

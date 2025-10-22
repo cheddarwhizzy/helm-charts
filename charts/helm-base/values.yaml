@@ -187,8 +187,8 @@ serviceAccount:
 terminationGracePeriodSeconds: 30
 
 # Image configuration
-image:
-  tag: latest # Image tag
+image: {}
+  # tag: latest # Image tag
   # repository: some.registry.com/my-image # Image repository
 
 # Image pull secrets for private registries

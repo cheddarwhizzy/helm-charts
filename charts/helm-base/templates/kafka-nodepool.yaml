@@ -1,0 +1,56 @@
+{{- if and .Values.kafka.enabled .Values.kafka.kraft.enabled }}
+{{- range .Values.kafka.kraft.nodePools }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "helm-base.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: kafka-nodepool
+    strimzi.io/cluster: {{ $.Values.kafka.cluster.name | default (include "helm-base.fullname" $) }}
+spec:
+  replicas: {{ .replicas }}
+  
+  roles:
+    {{- range .roles }}
+    - {{ . }}
+    {{- end }}
+  
+  {{- if .storage }}
+  storage:
+    {{- toYaml .storage | nindent 4 }}
+  {{- end }}
+  
+  {{- if .resources }}
+  resources:
+    {{- toYaml .resources | nindent 4 }}
+  {{- end }}
+  
+  {{- if .jvmOptions }}
+  jvmOptions:
+    {{- toYaml .jvmOptions | nindent 4 }}
+  {{- end }}
+  
+  {{- if .template }}
+  template:
+    {{- if .template.pod }}
+    pod:
+      {{- if .template.pod.affinity }}
+      affinity:
+        {{- toYaml .template.pod.affinity | nindent 8 }}
+      {{- end }}
+      
+      {{- if .template.pod.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .template.pod.nodeSelector | nindent 8 }}
+      {{- end }}
+      
+      {{- if .template.pod.tolerations }}
+      tolerations:
+        {{- toYaml .template.pod.tolerations | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

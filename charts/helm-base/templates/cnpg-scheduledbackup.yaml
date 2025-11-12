@@ -1,0 +1,23 @@
+{{- if .Values.cnpg }}
+{{- if and .Values.cnpg.enabled .Values.cnpg.backup.enabled }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: {{ .Values.cnpg.cluster.name | default (include "helm-base.fullname" .) }}-backup
+  labels:
+    {{- include "helm-base.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.cnpg.backup.schedule | default "0 */1 * * *" | quote }}
+  backupOwnerReference: self
+  cluster:
+    name: {{ .Values.cnpg.cluster.name | default (include "helm-base.fullname" .) }}
+  {{- if .Values.cnpg.backup.immediate }}
+  immediate: true
+  {{- end }}
+{{- end }}
+
+
+
+{{- end }}

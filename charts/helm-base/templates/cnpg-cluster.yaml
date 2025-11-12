@@ -1,0 +1,102 @@
+{{- if .Values.cnpg }}
+{{- if .Values.cnpg.enabled }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.cnpg.cluster.name | default (include "helm-base.fullname" .) }}
+  labels:
+    {{- include "helm-base.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  instances: {{ .Values.cnpg.cluster.instances }}
+  
+  imageName: {{ printf "ghcr.io/cloudnative-pg/postgresql:%d" (.Values.cnpg.cluster.postgresVersion | int) }}
+  
+  {{- if .Values.cnpg.cluster.storage }}
+  storage:
+    size: {{ .Values.cnpg.cluster.storage.size }}
+    {{- if .Values.cnpg.cluster.storage.storageClass }}
+    storageClass: {{ .Values.cnpg.cluster.storage.storageClass }}
+    {{- end }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.cluster.resources }}
+  resources:
+    {{- toYaml .Values.cnpg.cluster.resources | nindent 4 }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.cluster.postgresql }}
+  postgresql:
+    {{- if .Values.cnpg.cluster.postgresql.parameters }}
+    parameters:
+      {{- toYaml .Values.cnpg.cluster.postgresql.parameters | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.cluster.bootstrap }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.cnpg.cluster.bootstrap.initdb.database | default "app" }}
+      owner: {{ .Values.cnpg.cluster.bootstrap.initdb.owner | default "app" }}
+      {{- if .Values.cnpg.cluster.bootstrap.initdb.encoding }}
+      encoding: {{ .Values.cnpg.cluster.bootstrap.initdb.encoding }}
+      {{- end }}
+      {{- if .Values.cnpg.cluster.bootstrap.initdb.locale }}
+      localeCollate: {{ .Values.cnpg.cluster.bootstrap.initdb.locale }}
+      localeCType: {{ .Values.cnpg.cluster.bootstrap.initdb.locale }}
+      {{- end }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.cluster.monitoring.enabled }}
+  monitoring:
+    enablePodMonitor: {{ .Values.cnpg.cluster.monitoring.podMonitor.enabled | default true }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.cluster.affinity.enablePodAntiAffinity }}
+  affinity:
+    podAntiAffinityType: required
+    topologyKey: {{ .Values.cnpg.cluster.affinity.topologyKey | default "topology.kubernetes.io/zone" }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.cluster.nodeSelector }}
+  nodeSelector:
+    {{- toYaml .Values.cnpg.cluster.nodeSelector | nindent 4 }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.cluster.tolerations }}
+  tolerations:
+    {{- toYaml .Values.cnpg.cluster.tolerations | nindent 4 }}
+  {{- end }}
+  
+  {{- if and .Values.cnpg.backup.enabled .Values.cnpg.backup.s3.enabled }}
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://{{ .Values.cnpg.backup.s3.bucket }}{{ .Values.cnpg.backup.s3.path }}
+      s3Credentials:
+        inheritFromIAMRole: true
+      {{- if .Values.cnpg.backup.wal.enabled }}
+      wal:
+        compression: {{ .Values.cnpg.backup.wal.compression | default "gzip" }}
+        maxParallel: 2
+      {{- end }}
+      data:
+        compression: gzip
+        jobs: 2
+    retentionPolicy: {{ .Values.cnpg.backup.retentionPolicy | default "7d" }}
+  {{- end }}
+  
+  {{- if .Values.serviceAccount.create }}
+  serviceAccountTemplate:
+    metadata:
+      {{- if .Values.serviceAccount.annotations }}
+      annotations:
+        {{- toYaml .Values.serviceAccount.annotations | nindent 8 }}
+      {{- end }}
+      {{- if and .Values.cnpg.backup.enabled .Values.cnpg.backup.s3.enabled .Values.cnpg.backup.s3.roleArn }}
+      annotations:
+        eks.amazonaws.com/role-arn: {{ .Values.cnpg.backup.s3.roleArn }}
+      {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,67 @@
+{{- if .Values.kafka }}
+{{- if and .Values.kafka.enabled .Values.kafka.connect.enabled }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnect
+metadata:
+  name: {{ .Values.kafka.connect.name | default (printf "%s-connect" (include "helm-base.fullname" .)) }}
+  labels:
+    {{- include "helm-base.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka-connect
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: {{ .Values.kafka.cluster.version }}
+  replicas: {{ .Values.kafka.connect.replicas }}
+  bootstrapServers: {{ .Values.kafka.connect.bootstrapServers | default (printf "%s-kafka-bootstrap:9092" (include "helm-base.fullname" .)) }}
+  
+  {{- if .Values.kafka.connect.tls.enabled }}
+  tls:
+    trustedCertificates:
+      - secretName: {{ .Values.kafka.connect.tls.secretName | default (printf "%s-cluster-ca-cert" (include "helm-base.fullname" .)) }}
+        pattern: "*.crt"
+  {{- end }}
+  
+  {{- if .Values.kafka.connect.config }}
+  config:
+    {{- toYaml .Values.kafka.connect.config | nindent 4 }}
+  {{- end }}
+  
+  {{- if .Values.kafka.connect.resources }}
+  resources:
+    {{- toYaml .Values.kafka.connect.resources | nindent 4 }}
+  {{- end }}
+  
+  {{- if .Values.kafka.connect.build.enabled }}
+  build:
+    output:
+      type: {{ .Values.kafka.connect.build.output.type }}
+      image: {{ .Values.kafka.connect.build.output.image }}
+    plugins:
+      {{- range .Values.kafka.connect.build.plugins }}
+      - name: {{ .name }}
+        artifacts:
+          {{- range .artifacts }}
+          - type: {{ .type }}
+            url: {{ .url }}
+          {{- end }}
+      {{- end }}
+  {{- end }}
+  
+  {{- if .Values.kafka.connect.template }}
+  template:
+    {{- if .Values.kafka.connect.template.pod }}
+    pod:
+      {{- if .Values.kafka.connect.template.pod.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.kafka.connect.template.pod.nodeSelector | nindent 8 }}
+      {{- end }}
+      
+      {{- if .Values.kafka.connect.template.pod.tolerations }}
+      tolerations:
+        {{- toYaml .Values.kafka.connect.template.pod.tolerations | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

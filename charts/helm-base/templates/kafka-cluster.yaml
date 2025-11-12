@@ -1,0 +1,125 @@
+{{- if .Values.kafka }}
+{{- if .Values.kafka.enabled }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ .Values.kafka.cluster.name | default (include "helm-base.fullname" .) }}
+  labels:
+    {{- include "helm-base.labels" . | nindent 4 }}
+    app.kubernetes.io/component: kafka
+spec:
+  kafka:
+    version: {{ .Values.kafka.cluster.version }}
+    {{- if .Values.kafka.cluster.metadataVersion }}
+    metadataVersion: {{ .Values.kafka.cluster.metadataVersion }}
+    {{- end }}
+    {{- if not .Values.kafka.kraft.enabled }}
+    replicas: {{ .Values.kafka.cluster.replicas | default 3 }}
+    {{- end }}
+    
+    listeners:
+      {{- range .Values.kafka.cluster.listeners }}
+      - name: {{ .name }}
+        port: {{ .port }}
+        type: {{ .type }}
+        tls: {{ .tls | default false }}
+        {{- if .authentication }}
+        authentication:
+          {{- toYaml .authentication | nindent 10 }}
+        {{- end }}
+      {{- end }}
+    
+    {{- if .Values.kafka.cluster.config }}
+    config:
+      {{- toYaml .Values.kafka.cluster.config | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.cluster.storage }}
+    storage:
+      {{- toYaml .Values.kafka.cluster.storage | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.cluster.resources }}
+    resources:
+      {{- toYaml .Values.kafka.cluster.resources | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.cluster.jvmOptions }}
+    jvmOptions:
+      {{- toYaml .Values.kafka.cluster.jvmOptions | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.cluster.affinity.enablePodAntiAffinity }}
+    template:
+      pod:
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: strimzi.io/cluster
+                      operator: In
+                      values:
+                        - {{ .Values.kafka.cluster.name | default (include "helm-base.fullname" .) }}
+                    - key: strimzi.io/name
+                      operator: In
+                      values:
+                        - {{ .Values.kafka.cluster.name | default (include "helm-base.fullname" .) }}-kafka
+                topologyKey: {{ .Values.kafka.cluster.affinity.topologyKey | default "topology.kubernetes.io/zone" }}
+    {{- end }}
+    
+    {{- if .Values.kafka.cluster.nodeSelector }}
+    template:
+      pod:
+        nodeSelector:
+          {{- toYaml .Values.kafka.cluster.nodeSelector | nindent 10 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.cluster.tolerations }}
+    template:
+      pod:
+        tolerations:
+          {{- toYaml .Values.kafka.cluster.tolerations | nindent 10 }}
+    {{- end }}
+
+  {{- if .Values.kafka.zookeeper.enabled }}
+  zookeeper:
+    replicas: {{ .Values.kafka.zookeeper.replicas }}
+    
+    {{- if .Values.kafka.zookeeper.storage }}
+    storage:
+      {{- toYaml .Values.kafka.zookeeper.storage | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.zookeeper.resources }}
+    resources:
+      {{- toYaml .Values.kafka.zookeeper.resources | nindent 6 }}
+    {{- end }}
+    
+    {{- if .Values.kafka.zookeeper.jvmOptions }}
+    jvmOptions:
+      {{- toYaml .Values.kafka.zookeeper.jvmOptions | nindent 6 }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.kafka.entityOperator.enabled }}
+  entityOperator:
+    {{- if .Values.kafka.entityOperator.topicOperator.enabled }}
+    topicOperator:
+      {{- if .Values.kafka.entityOperator.topicOperator.resources }}
+      resources:
+        {{- toYaml .Values.kafka.entityOperator.topicOperator.resources | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    
+    {{- if .Values.kafka.entityOperator.userOperator.enabled }}
+    userOperator:
+      {{- if .Values.kafka.entityOperator.userOperator.resources }}
+      resources:
+        {{- toYaml .Values.kafka.entityOperator.userOperator.resources | nindent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

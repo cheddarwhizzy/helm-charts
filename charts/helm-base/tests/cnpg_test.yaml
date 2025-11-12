@@ -1,0 +1,211 @@
+suite: CloudNativePG Tests
+templates:
+  - cnpg-cluster.yaml
+  - cnpg-scheduledbackup.yaml
+  - cnpg-pooler.yaml
+tests:
+  # Test 1: CNPG disabled by default
+  - it: should not create CNPG resources when disabled
+    template: cnpg-cluster.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Test 2: CNPG cluster with basic configuration
+  - it: should create a CNPG cluster with basic config
+    template: cnpg-cluster.yaml
+    set:
+      cnpg:
+        enabled: true
+        cluster:
+          name: test-postgres
+          instances: 3
+          postgresVersion: 16
+          storage:
+            size: 10Gi
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+    asserts:
+      - isKind:
+          of: Cluster
+      - equal:
+          path: metadata.name
+          value: test-postgres
+      - equal:
+          path: spec.instances
+          value: 3
+      - equal:
+          path: spec.storage.size
+          value: 10Gi
+
+  # Test 3: CNPG cluster with S3 backup
+  - it: should create a CNPG cluster with S3 backup configured
+    template: cnpg-cluster.yaml
+    set:
+      cnpg:
+        enabled: true
+        cluster:
+          name: test-postgres
+          instances: 3
+          postgresVersion: 16
+        backup:
+          enabled: true
+          s3:
+            enabled: true
+            bucket: my-backup-bucket
+            path: /postgres/backups
+            region: us-west-1
+          retentionPolicy: "7d"
+          wal:
+            enabled: true
+            compression: gzip
+    asserts:
+      - isKind:
+          of: Cluster
+      - equal:
+          path: spec.backup.barmanObjectStore.destinationPath
+          value: s3://my-backup-bucket/postgres/backups
+      - equal:
+          path: spec.backup.retentionPolicy
+          value: "7d"
+      - equal:
+          path: spec.backup.barmanObjectStore.wal.compression
+          value: gzip
+
+  # Test 4: ScheduledBackup resource
+  - it: should create a ScheduledBackup when backup is enabled
+    template: cnpg-scheduledbackup.yaml
+    set:
+      cnpg:
+        enabled: true
+        cluster:
+          name: test-postgres
+        backup:
+          enabled: true
+          schedule: "0 2 * * *"
+    asserts:
+      - isKind:
+          of: ScheduledBackup
+      - equal:
+          path: spec.schedule
+          value: "0 2 * * *"
+      - equal:
+          path: spec.cluster.name
+          value: test-postgres
+
+  # Test 5: No ScheduledBackup when backup disabled
+  - it: should not create ScheduledBackup when backup is disabled
+    template: cnpg-scheduledbackup.yaml
+    set:
+      cnpg:
+        enabled: true
+        backup:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Test 6: Pooler configuration
+  - it: should create a Pooler when enabled
+    template: cnpg-pooler.yaml
+    set:
+      cnpg:
+        enabled: true
+        cluster:
+          name: test-postgres
+        pooler:
+          enabled: true
+          instances: 3
+          poolMode: transaction
+          parameters:
+            max_client_conn: "1000"
+            default_pool_size: "25"
+    asserts:
+      - isKind:
+          of: Pooler
+      - equal:
+          path: spec.instances
+          value: 3
+      - equal:
+          path: spec.pgbouncer.poolMode
+          value: transaction
+      - equal:
+          path: spec.pgbouncer.parameters.max_client_conn
+          value: "1000"
+
+  # Test 7: No Pooler when disabled
+  - it: should not create Pooler when disabled
+    template: cnpg-pooler.yaml
+    set:
+      cnpg:
+        enabled: true
+        pooler:
+          enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  # Test 8: Pod anti-affinity configuration
+  - it: should configure pod anti-affinity
+    template: cnpg-cluster.yaml
+    set:
+      cnpg:
+        enabled: true
+        cluster:
+          name: test-postgres
+          instances: 3
+          affinity:
+            enablePodAntiAffinity: true
+            topologyKey: topology.kubernetes.io/zone
+    asserts:
+      - equal:
+          path: spec.affinity.podAntiAffinityType
+          value: required
+      - equal:
+          path: spec.affinity.topologyKey
+          value: topology.kubernetes.io/zone
+
+  # Test 9: Monitoring enabled
+  - it: should enable monitoring when configured
+    template: cnpg-cluster.yaml
+    set:
+      cnpg:
+        enabled: true
+        cluster:
+          name: test-postgres
+          instances: 3
+          monitoring:
+            enabled: true
+            podMonitor:
+              enabled: true
+    asserts:
+      - equal:
+          path: spec.monitoring.enablePodMonitor
+          value: true
+
+  # Test 10: Service account with IRSA
+  - it: should configure service account with IRSA annotations
+    template: cnpg-cluster.yaml
+    set:
+      cnpg:
+        enabled: true
+        cluster:
+          name: test-postgres
+          instances: 3
+        backup:
+          enabled: true
+          s3:
+            enabled: true
+            bucket: my-bucket
+            roleArn: arn:aws:iam::123456789012:role/my-role
+      serviceAccount:
+        create: true
+    asserts:
+      - equal:
+          path: spec.serviceAccountTemplate.metadata.annotations["eks.amazonaws.com/role-arn"]
+          value: arn:aws:iam::123456789012:role/my-role
+
+
+

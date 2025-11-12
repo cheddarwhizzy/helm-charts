@@ -45,6 +45,14 @@ app: {{ include "helm-base.name" . }}
 release: {{ include "helm-base.name" . }}
 {{- end -}}
 
+{{- define "helm-base.labels" -}}
+app: {{ include "helm-base.name" . }}
+release: {{ include "helm-base.name" . }}
+app.kubernetes.io/name: {{ include "helm-base.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end -}}
+
 {{- define "helm-base.podLabels" -}}
 {{- if .Values.podLabels -}}
 {{- toYaml .Values.podLabels }}

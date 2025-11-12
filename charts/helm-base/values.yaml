@@ -809,3 +809,363 @@ vpa:
 #     # - name: ndots
 #     #   value: "2"
 #     # - name: edns0
+
+# CloudNativePG Configuration
+# Enable this to deploy a CloudNativePG PostgreSQL cluster
+cnpg:
+  enabled: false
+  
+  # Cluster configuration
+  cluster:
+    # Name of the cluster (defaults to fullname if not set)
+    name: ""
+    
+    # Number of PostgreSQL instances
+    instances: 3
+    
+    # PostgreSQL version
+    postgresVersion: 16
+    
+    # Storage configuration
+    storage:
+      size: 50Gi
+      storageClass: ""  # Uses default if not specified
+      
+    # Resource requests and limits
+    resources:
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+    
+    # PostgreSQL configuration parameters
+    postgresql:
+      parameters:
+        max_connections: "200"
+        shared_buffers: "512MB"
+        effective_cache_size: "1536MB"
+        maintenance_work_mem: "128MB"
+        checkpoint_completion_target: "0.9"
+        wal_buffers: "16MB"
+        default_statistics_target: "100"
+        random_page_cost: "1.1"
+        effective_io_concurrency: "200"
+        work_mem: "2621kB"
+        min_wal_size: "1GB"
+        max_wal_size: "4GB"
+    
+    # Database initialization
+    bootstrap:
+      initdb:
+        database: "app"
+        owner: "app"
+        # encoding: UTF8
+        # locale: en_US.UTF-8
+    
+    # Monitoring configuration
+    monitoring:
+      enabled: true
+      # Prometheus PodMonitor settings
+      podMonitor:
+        enabled: true
+        
+    # Pod anti-affinity to spread instances across nodes/zones
+    affinity:
+      enablePodAntiAffinity: true
+      topologyKey: "topology.kubernetes.io/zone"
+      
+    # Node selector
+    nodeSelector: {}
+    
+    # Tolerations
+    tolerations: []
+  
+  # Backup configuration
+  backup:
+    enabled: false
+    
+    # Backup schedule (cron format)
+    schedule: "0 */1 * * *"  # Hourly by default
+    
+    # Backup retention policy
+    retentionPolicy: "7d"
+    
+    # S3 backup configuration
+    s3:
+      enabled: false
+      bucket: ""
+      path: "/"
+      region: "us-west-1"
+      # Service account name for IRSA (leave empty to auto-generate)
+      serviceAccountName: ""
+      # IAM role ARN for IRSA
+      roleArn: ""
+    
+    # WAL archiving for Point-in-Time Recovery
+    wal:
+      enabled: true
+      compression: "gzip"
+  
+  # Connection pooler configuration (PgBouncer)
+  pooler:
+    enabled: false
+    
+    # Number of pooler instances
+    instances: 3
+    
+    # Pool mode: session, transaction, or statement
+    poolMode: "transaction"
+    
+    # PgBouncer configuration parameters
+    parameters:
+      max_client_conn: "1000"
+      default_pool_size: "25"
+      pool_mode: "transaction"
+      
+    # Resource requests and limits for pooler
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+    
+    # Pooler service type
+    service:
+      type: ClusterIP
+
+# Strimzi Kafka Configuration
+# Enable this to deploy a Strimzi Kafka cluster
+kafka:
+  enabled: false
+  
+  # Cluster configuration
+  cluster:
+    # Name of the cluster (defaults to fullname if not set)
+    name: ""
+    
+    # Kafka version
+    version: "3.8.0"
+    
+    # Metadata version for KRaft mode
+    metadataVersion: "3.8-IV0"
+    
+    # Number of Kafka replicas (ignored if using KRaft node pools)
+    replicas: 3
+    
+    # Kafka listeners configuration
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+    
+    # Kafka configuration
+    config:
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+      inter.broker.protocol.version: "3.8"
+      log.message.format.version: "3.8"
+    
+    # Storage configuration
+    storage:
+      type: jbod
+      volumes:
+        - id: 0
+          type: persistent-claim
+          size: 100Gi
+          deleteClaim: false
+    
+    # Resource requests and limits
+    resources:
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+    
+    # JVM options
+    jvmOptions:
+      -Xms: 2048m
+      -Xmx: 2048m
+    
+    # Pod anti-affinity to spread instances across nodes/zones
+    affinity:
+      enablePodAntiAffinity: true
+      topologyKey: "topology.kubernetes.io/zone"
+      
+    # Node selector
+    nodeSelector: {}
+    
+    # Tolerations
+    tolerations: []
+  
+  # ZooKeeper configuration (for non-KRaft mode)
+  zookeeper:
+    enabled: false  # Set to true if not using KRaft mode
+    replicas: 3
+    
+    storage:
+      type: persistent-claim
+      size: 10Gi
+      deleteClaim: false
+    
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+    
+    jvmOptions:
+      -Xms: 512m
+      -Xmx: 512m
+  
+  # KRaft mode configuration (recommended)
+  kraft:
+    enabled: true
+    
+    # Node pools for KRaft mode
+    nodePools:
+      - name: controller
+        replicas: 3
+        roles:
+          - controller
+        storage:
+          type: jbod
+          volumes:
+            - id: 0
+              type: persistent-claim
+              size: 10Gi
+              kraftMetadata: shared
+              deleteClaim: false
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+        jvmOptions:
+          -Xms: 512m
+          -Xmx: 512m
+      
+      - name: broker
+        replicas: 3
+        roles:
+          - broker
+        storage:
+          type: jbod
+          volumes:
+            - id: 0
+              type: persistent-claim
+              size: 100Gi
+              kraftMetadata: shared
+              deleteClaim: false
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        jvmOptions:
+          -Xms: 2048m
+          -Xmx: 2048m
+  
+  # Entity Operator configuration
+  entityOperator:
+    enabled: true
+    
+    topicOperator:
+      enabled: true
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+    
+    userOperator:
+      enabled: true
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+  
+  # Kafka topics to create
+  topics: []
+  # Example:
+  # - name: my-topic
+  #   topicName: my-topic
+  #   partitions: 3
+  #   replicas: 3
+  #   config:
+  #     retention.ms: 604800000  # 7 days
+  #     segment.ms: 86400000     # 1 day
+  
+  # Kafka Connect configuration
+  connect:
+    enabled: false
+    name: ""  # defaults to <fullname>-connect
+    replicas: 1
+    bootstrapServers: ""  # defaults to <fullname>-kafka-bootstrap:9092
+    
+    # TLS configuration
+    tls:
+      enabled: false
+      secretName: ""  # defaults to <fullname>-cluster-ca-cert
+    
+    # Connect configuration
+    config:
+      group.id: connect-cluster
+      offset.storage.topic: connect-cluster-offsets
+      config.storage.topic: connect-cluster-configs
+      status.storage.topic: connect-cluster-status
+      config.storage.replication.factor: -1
+      offset.storage.replication.factor: -1
+      status.storage.replication.factor: -1
+    
+    # Resource requests and limits
+    resources:
+      requests:
+        cpu: "500m"
+        memory: "1Gi"
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+    
+    # Build configuration for custom connectors
+    build:
+      enabled: false
+      output:
+        type: docker
+        image: ""  # e.g., my-registry.io/my-connect-cluster:latest
+      plugins: []
+      # Example:
+      # - name: debezium-postgres-connector
+      #   artifacts:
+      #     - type: tgz
+      #       url: https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/2.5.0.Final/debezium-connector-postgres-2.5.0.Final-plugin.tar.gz
+    
+    # Template for pod configuration
+    template:
+      pod:
+        nodeSelector: {}
+        tolerations: []

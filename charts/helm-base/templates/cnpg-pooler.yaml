@@ -1,0 +1,47 @@
+{{- if .Values.cnpg }}
+{{- if and .Values.cnpg.enabled .Values.cnpg.pooler.enabled }}
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: {{ .Values.cnpg.cluster.name | default (include "helm-base.fullname" .) }}-pooler
+  labels:
+    {{- include "helm-base.labels" . | nindent 4 }}
+    app.kubernetes.io/component: pooler
+spec:
+  cluster:
+    name: {{ .Values.cnpg.cluster.name | default (include "helm-base.fullname" .) }}
+  
+  instances: {{ .Values.cnpg.pooler.instances | default 3 }}
+  
+  type: {{ .Values.cnpg.pooler.type | default "rw" }}
+  
+  pgbouncer:
+    poolMode: {{ .Values.cnpg.pooler.poolMode | default "transaction" }}
+    {{- if .Values.cnpg.pooler.parameters }}
+    parameters:
+      {{- range $key, $value := .Values.cnpg.pooler.parameters }}
+      {{- if ne $key "pool_mode" }}
+      {{ $key }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+  
+  {{- if .Values.cnpg.pooler.resources }}
+  template:
+    spec:
+      containers:
+      - name: pgbouncer
+        resources:
+          {{- toYaml .Values.cnpg.pooler.resources | nindent 10 }}
+  {{- end }}
+  
+  {{- if .Values.cnpg.pooler.service }}
+  service:
+    type: {{ .Values.cnpg.pooler.service.type | default "ClusterIP" }}
+  {{- end }}
+{{- end }}
+
+
+
+{{- end }}

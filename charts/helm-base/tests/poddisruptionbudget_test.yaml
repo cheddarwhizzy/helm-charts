@@ -21,7 +21,7 @@ tests:
           value: 1
       - equal:
           path: spec.selector.matchLabels.app
-          value: RELEASE-NAME
+          value: helm-base
 
   - it: should not render PDB when disabled
     set:

@@ -1,0 +1,468 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: workloads comprehensive test
+templates:
+  - deployment.yaml
+  - statefulset.yaml
+  - job.yaml
+  - cronjob.yaml
+  - daemonset.yaml
+tests:
+  # Deployment - Map-based containers
+  - it: should render Deployment with map-based containers
+    set:
+      kind: Deployment
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http: 80
+          env:
+            base:
+              ENV: production
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+    template: deployment.yaml
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+
+  # Deployment - List-based containers
+  - it: should render Deployment with list-based containers
+    set:
+      kind: Deployment
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              name: http
+          env:
+            - name: ENV
+              value: production
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: app
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: http
+
+  # Deployment - Map-based with initContainers
+  - it: should render Deployment with map-based containers and initContainers
+    set:
+      kind: Deployment
+      initContainers:
+        migrator:
+          image: migrate:latest
+      containers:
+        main:
+          image: nginx:latest
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: migrator
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+
+  # StatefulSet - Map-based containers
+  - it: should render StatefulSet with map-based containers
+    set:
+      kind: StatefulSet
+      containers:
+        main:
+          image: postgres:14
+          ports:
+            postgres: 5432
+          env:
+            base:
+              POSTGRES_DB: myapp
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 5432
+
+  # StatefulSet - List-based containers
+  - it: should render StatefulSet with list-based containers
+    set:
+      kind: StatefulSet
+      containers:
+        - name: postgres
+          image: postgres:14
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: myapp
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: postgres
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: postgres
+
+  # StatefulSet - With volumeClaimTemplates
+  - it: should render StatefulSet with map-based containers and volumeClaimTemplates
+    set:
+      kind: StatefulSet
+      containers:
+        main:
+          image: postgres:14
+      volumeClaimTemplates:
+        - metadata:
+            name: data
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.volumeClaimTemplates[0].metadata.name
+          value: data
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 10Gi
+
+  # Job - Map-based containers
+  - it: should render Job with map-based containers
+    set:
+      kind: Job
+      containers:
+        worker:
+          image: worker:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Job completed
+          env:
+            base:
+              JOB_MODE: batch
+    template: job.yaml
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: worker
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: echo Job completed
+
+  # Job - List-based containers
+  - it: should render Job with list-based containers
+    set:
+      kind: Job
+      containers:
+        - name: task
+          image: task:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Task done
+    template: job.yaml
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: task
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: echo Task done
+
+  # Job - With backoffLimit and activeDeadlineSeconds
+  - it: should render Job with map-based containers and job-specific config
+    set:
+      kind: Job
+      backoffLimit: 5
+      activeDeadlineSeconds: 3600
+      containers:
+        worker:
+          image: worker:latest
+    template: job.yaml
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.backoffLimit
+          value: 5
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 3600
+
+  # CronJob - Map-based containers
+  - it: should render CronJob with map-based containers
+    set:
+      kind: CronJob
+      schedule: "0 0 * * *"
+      containers:
+        job:
+          image: job:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Cron job running
+          env:
+            base:
+              CRON_MODE: enabled
+    template: cronjob.yaml
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.schedule
+          value: "0 0 * * *"
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].name
+          value: job
+
+  # CronJob - List-based containers
+  - it: should render CronJob with list-based containers
+    set:
+      kind: CronJob
+      schedule: "*/5 * * * *"
+      containers:
+        - name: scheduled-task
+          image: task:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Scheduled task
+    template: cronjob.yaml
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.schedule
+          value: "*/5 * * * *"
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].name
+          value: scheduled-task
+
+  # CronJob - With cron-specific config
+  - it: should render CronJob with map-based containers and cron-specific config
+    set:
+      kind: CronJob
+      schedule: "0 0 * * *"
+      concurrencyPolicy: Forbid
+      successfulJobsHistoryLimit: 5
+      failedJobsHistoryLimit: 3
+      containers:
+        job:
+          image: job:latest
+    template: cronjob.yaml
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 5
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 3
+
+  # DaemonSet - Map-based containers
+  - it: should render DaemonSet with map-based containers
+    set:
+      kind: DaemonSet
+      containers:
+        agent:
+          image: agent:latest
+          ports:
+            metrics: 9090
+          env:
+            base:
+              AGENT_MODE: daemon
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+    template: daemonset.yaml
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: agent
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9090
+
+  # DaemonSet - List-based containers
+  - it: should render DaemonSet with list-based containers
+    set:
+      kind: DaemonSet
+      containers:
+        - name: daemon
+          image: daemon:latest
+          ports:
+            - containerPort: 9090
+              name: metrics
+          env:
+            - name: DAEMON_MODE
+              value: enabled
+    template: daemonset.yaml
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: daemon
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: metrics
+
+  # All workload types with full features - Map-based
+  - it: should render Deployment with full map-based container features
+    set:
+      kind: Deployment
+      volumes:
+        data:
+          emptyDir: {}
+      initContainers:
+        setup:
+          image: setup:latest
+      containers:
+        main:
+          image: nginx:1.21
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo hello
+          workingDir: /app
+          ports:
+            http: 80
+          volumeMounts:
+            data:
+              mountPath: /data
+          env:
+            base:
+              ENV: production
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 80
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 5
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].workingDir
+          value: /app
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+
+  # All workload types with full features - List-based
+  - it: should render StatefulSet with full list-based container features
+    set:
+      kind: StatefulSet
+      volumes:
+        - name: data
+          emptyDir: {}
+      initContainers:
+        - name: setup
+          image: setup:latest
+      containers:
+        - name: postgres
+          image: postgres:14
+          command:
+            - docker-entrypoint.sh
+            - postgres
+          workingDir: /var/lib/postgresql
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          env:
+            - name: POSTGRES_DB
+              value: myapp
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+          startupProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -U postgres
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: postgres
+      - equal:
+          path: spec.template.spec.containers[0].workingDir
+          value: /var/lib/postgresql
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: postgres
+

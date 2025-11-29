@@ -1,0 +1,113 @@
+{{- if and .Values.gatewayApi.enabled .Values.gatewayApi.httpRoutes }}
+{{- $root := . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $chartName := include "helm-base.fullname" . }}
+{{- $defaultServiceName := "" }}
+{{- if .Values.services }}
+  {{- $firstService := first .Values.services }}
+  {{- $defaultServiceName = printf "%s-%s" $chartName $firstService.name }}
+  {{- if $firstService.fullname }}
+    {{- $defaultServiceName = $firstService.fullname }}
+  {{- end }}
+{{- end }}
+{{- $globalAnnotations := default (dict) .Values.gatewayApi.httpRouteAnnotations }}
+{{- $apiVersion := default "gateway.networking.k8s.io/v1" .Values.gatewayApi.apiVersion }}
+{{- range $route := .Values.gatewayApi.httpRoutes }}
+{{- $resourceName := printf "%s-%s" $chartName (tpl $route.name $root) }}
+{{- if $route.fullname }}
+  {{- $resourceName = tpl $route.fullname $root }}
+{{- end }}
+{{- $annotations := mergeOverwrite (deepCopy $globalAnnotations) (default (dict) $route.annotations) }}
+---
+apiVersion: {{ default $apiVersion $route.apiVersion }}
+kind: HTTPRoute
+metadata:
+  name: {{ $resourceName }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  {{- if $route.labels }}
+{{ toYaml $route.labels | nindent 4 }}
+  {{- end }}
+  {{- if $annotations }}
+  annotations:
+  {{- range $key, $value := $annotations }}
+    {{ $key }}: {{ (tpl $value $root) | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  {{- if $route.hostnames }}
+  hostnames:
+    {{- range $hostname := $route.hostnames }}
+    - {{ tpl $hostname $root | quote }}
+    {{- end }}
+  {{- end }}
+  {{- if $route.parentRefs }}
+  parentRefs:
+    {{- range $parent := $route.parentRefs }}
+    - name: {{ tpl $parent.name $root }}
+      {{- if $parent.namespace }}
+      namespace: {{ tpl $parent.namespace $root }}
+      {{- end }}
+      {{- if $parent.sectionName }}
+      sectionName: {{ tpl $parent.sectionName $root }}
+      {{- end }}
+      {{- if $parent.port }}
+      port: {{ $parent.port }}
+      {{- end }}
+      {{- if $parent.kind }}
+      kind: {{ tpl $parent.kind $root }}
+      {{- end }}
+      {{- if $parent.group }}
+      group: {{ tpl $parent.group $root }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if $route.rules }}
+  rules:
+    {{- range $rule := $route.rules }}
+    - {{- if $rule.matches }}
+      matches:
+{{ tpl (toYaml $rule.matches) $root | indent 8 }}
+      {{- end }}
+      {{- if $rule.filters }}
+      filters:
+{{ tpl (toYaml $rule.filters) $root | indent 8 }}
+      {{- end }}
+      backendRefs:
+        {{- range $backend := $rule.backendRefs }}
+        {{- $backendName := "" -}}
+        {{- if $backend.name }}
+          {{- $backendName = tpl $backend.name $root -}}
+        {{- else if $backend.serviceFullName }}
+          {{- $backendName = tpl $backend.serviceFullName $root -}}
+        {{- else if $backend.service }}
+          {{- $backendName = printf "%s-%s" $chartName (tpl $backend.service $root) -}}
+        {{- else if $defaultServiceName }}
+          {{- $backendName = $defaultServiceName -}}
+        {{- else -}}
+          {{- fail (printf "gatewayApi.httpRoutes[%s].rules backendRefs require a name or service" $route.name) -}}
+        {{- end }}
+        - name: {{ $backendName }}
+          {{- $backendPort := coalesce $backend.port $rule.port $.Values.gatewayApi.port }}
+          port: {{ $backendPort }}
+          {{- if $backend.namespace }}
+          namespace: {{ tpl $backend.namespace $root }}
+          {{- end }}
+          {{- if $backend.group }}
+          group: {{ tpl $backend.group $root }}
+          {{- end }}
+          {{- if $backend.kind }}
+          kind: {{ tpl $backend.kind $root }}
+          {{- end }}
+          {{- if $backend.weight }}
+          weight: {{ $backend.weight }}
+          {{- end }}
+          {{- if $backend.filters }}
+          filters:
+{{ tpl (toYaml $backend.filters) $root | indent 12 }}
+          {{- end }}
+        {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

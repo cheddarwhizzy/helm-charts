@@ -36,9 +36,11 @@ spec:
           {{- toYaml .Values.cnpg.pooler.resources | nindent 10 }}
   {{- end }}
   
-  {{- if .Values.cnpg.pooler.service }}
+  {{- with .Values.cnpg.pooler.service }}
+    {{- if .type }}
   service:
-    type: {{ .Values.cnpg.pooler.service.type | default "ClusterIP" }}
+    type: {{ .type }}
+    {{- end }}
   {{- end }}
 {{- end }}
 

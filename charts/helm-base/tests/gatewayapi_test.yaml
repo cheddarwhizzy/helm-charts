@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: gateway api support
+templates:
+  - gatewayapi-gateway.yaml
+  - gatewayapi-httproute.yaml
+tests:
+  - it: renders gateway and httproute when enabled
+    set:
+      services:
+        - name: web
+          ports:
+            - name: http
+              port: 3000
+      gatewayApi:
+        enabled: true
+        port: 3000
+        gatewayClassName: istio
+        gateways:
+          - name: public
+            listeners:
+              - name: http
+                hostname: "app.example.com"
+        httpRoutes:
+          - name: default
+            hostnames:
+              - app.example.com
+            parentRefs:
+              - name: public
+                sectionName: http
+            rules:
+              - matches:
+                  - path:
+                      type: PathPrefix
+                      value: /
+                backendRefs:
+                  - port: 3000
+    asserts:
+      - template: gatewayapi-gateway.yaml
+        hasDocuments:
+          count: 1
+      - template: gatewayapi-httproute.yaml
+        hasDocuments:
+          count: 1
+      - template: gatewayapi-gateway.yaml
+        isKind:
+          of: Gateway
+      - template: gatewayapi-httproute.yaml
+        isKind:
+          of: HTTPRoute
+      - template: gatewayapi-httproute.yaml
+        equal:
+          path: spec.rules[0].backendRefs[0].port
+          value: 3000
+      - template: gatewayapi-httproute.yaml
+        equal:
+          path: spec.rules[0].backendRefs[0].name
+          value: RELEASE-NAME-helm-base-web
+
+  - it: allows overriding backend names and annotations
+    set:
+      gatewayApi:
+        enabled: true
+        gatewayAnnotations:
+          shared: global
+        httpRouteAnnotations:
+          team: platform
+        gateways:
+          - name: external
+            gatewayClassName: cilium
+            namespace: gateways
+            annotations:
+              shared: per-gateway
+            listeners:
+              - name: https
+                protocol: HTTPS
+                port: 443
+        httpRoutes:
+          - name: custom
+            annotations:
+              team: edge
+            parentRefs:
+              - name: external
+                namespace: gateways
+            rules:
+              - backendRefs:
+                  - name: upstream-service
+                    namespace: upstream
+                    port: 8443
+    asserts:
+      - template: gatewayapi-gateway.yaml
+        equal:
+          path: metadata.annotations.shared
+          value: per-gateway
+      - template: gatewayapi-httproute.yaml
+        equal:
+          path: metadata.annotations.team
+          value: edge
+      - template: gatewayapi-httproute.yaml
+        equal:
+          path: spec.rules[0].backendRefs[0].name
+          value: upstream-service
+      - template: gatewayapi-httproute.yaml
+        equal:
+          path: spec.rules[0].backendRefs[0].namespace
+          value: upstream

@@ -82,20 +82,34 @@ Volume Mounts (per pod)
 */}}
 {{- define "helm-base.volumeMounts" -}}
 
-{{- if $.volumeMounts }}
+{{- $mounts := $.volumeMounts }}
+{{- if $mounts }}
 volumeMounts:
-{{- with $.volumeMounts }}
-{{- range $k, $m := . }}
-- name: {{ tpl $m.name $ }}
-  mountPath: {{ tpl $m.mountPath $ }}
-  {{- if $m.subPath }}
-  subPath: "{{ tpl $m.subPath $ }}"
-  {{- end}}
-  {{- if hasKey $m "readOnly" }}
-  readOnly: {{ $m.readOnly }}
+  {{- if eq (kindOf $mounts) "map" }}
+  {{- range $name, $m := $mounts }}
+  - name: {{ tpl (default $name $m.name) $ }}
+    mountPath: {{ tpl $m.mountPath $ }}
+    {{- if $m.subPath }}
+    subPath: "{{ tpl $m.subPath $ }}"
+    {{- end}}
+    {{- if hasKey $m "readOnly" }}
+    readOnly: {{ $m.readOnly }}
+    {{- end }}
   {{- end }}
-{{- end -}}
-{{- end }}
+  {{- else }}
+  {{- with $mounts }}
+  {{- range $k, $m := . }}
+  - name: {{ tpl $m.name $ }}
+    mountPath: {{ tpl $m.mountPath $ }}
+    {{- if $m.subPath }}
+    subPath: "{{ tpl $m.subPath $ }}"
+    {{- end}}
+    {{- if hasKey $m "readOnly" }}
+    readOnly: {{ $m.readOnly }}
+    {{- end }}
+  {{- end -}}
+  {{- end }}
+  {{- end }}
 {{- end }}
 {{- end -}}
 
@@ -105,41 +119,79 @@ Volumes (Shared amongst pods in deployments)
 */}}
 {{- define "helm-base.volumes" -}}
 {{- $name := include "helm-base.fullname" . }}
-{{- if .Values.volumes }}
+{{- $vols := .Values.volumes }}
+{{- if $vols }}
 volumes:
-{{- range $k, $vol := .Values.volumes }}
-{{- if hasKey $vol "emptyDir" }}
-- name: {{ $vol.name }}
-  emptyDir: {}
-{{- else if $vol.configMap }}
-- name: {{ $vol.name }}
-  configMap:
-    name: {{ if $vol.configMap.fullname }}{{ $vol.configMap.fullname }}{{else}}{{ $name }}-{{ $vol.configMap.name }}{{end}}
-    {{- if $vol.configMap.defaultMode }}
-    defaultMode: {{ $vol.configMap.defaultMode }}
-    {{- end }}
+  {{- if eq (kindOf $vols) "map" }}
+  {{- range $volName, $vol := $vols }}
+  {{- $renderedName := tpl $volName $ }}
+  {{- if hasKey $vol "emptyDir" }}
+  - name: {{ $renderedName }}
+    emptyDir: {}
+  {{- else if $vol.configMap }}
+  - name: {{ $renderedName }}
+    configMap:
+      name: {{ if $vol.configMap.fullname }}{{ $vol.configMap.fullname }}{{else}}{{ $name }}-{{ $vol.configMap.name }}{{end}}
+      {{- if $vol.configMap.defaultMode }}
+      defaultMode: {{ $vol.configMap.defaultMode }}
+      {{- end }}
 
-{{- else if $vol.secret }}
-- name: {{ $vol.name }}
-  secret:
-    secretName: {{ if $vol.secret.fullname }}{{ $vol.secret.fullname }}{{else}}{{ $name }}-{{ $vol.secret.secretName }}{{end}}
-{{- else if $vol.nfs }}
-- name: {{ $vol.name }}
-  nfs:
-    server: "{{ tpl $vol.nfs.server $ }}"
-    path: "{{ tpl $vol.nfs.path $ }}"
-{{- else if $vol.hostPath }}
-- name: {{ $vol.name }}
-  hostPath:
-    path: {{ $vol.hostPath.path }}
-    type: {{ $vol.type | default "DirectoryOrCreate" }}
-{{- else if $vol.persistentVolumeClaim }}
-- name: {{ $vol.name }}
-  persistentVolumeClaim:
-    claimName: {{ $vol.persistentVolumeClaim.claimName }}
-{{- else }}
-{{- end -}}
-{{- end -}}
+  {{- else if $vol.secret }}
+  - name: {{ $renderedName }}
+    secret:
+      secretName: {{ if $vol.secret.fullname }}{{ $vol.secret.fullname }}{{else}}{{ $name }}-{{ $vol.secret.secretName }}{{end}}
+  {{- else if $vol.nfs }}
+  - name: {{ $renderedName }}
+    nfs:
+      server: "{{ tpl $vol.nfs.server $ }}"
+      path: "{{ tpl $vol.nfs.path $ }}"
+  {{- else if $vol.hostPath }}
+  - name: {{ $renderedName }}
+    hostPath:
+      path: {{ $vol.hostPath.path }}
+      type: {{ $vol.type | default "DirectoryOrCreate" }}
+  {{- else if $vol.persistentVolumeClaim }}
+  - name: {{ $renderedName }}
+    persistentVolumeClaim:
+      claimName: {{ $vol.persistentVolumeClaim.claimName }}
+  {{- else }}
+  {{- end -}}
+  {{- end -}}
+  {{- else }}
+  {{- range $k, $vol := $vols }}
+  {{- if hasKey $vol "emptyDir" }}
+  - name: {{ $vol.name }}
+    emptyDir: {}
+  {{- else if $vol.configMap }}
+  - name: {{ $vol.name }}
+    configMap:
+      name: {{ if $vol.configMap.fullname }}{{ $vol.configMap.fullname }}{{else}}{{ $name }}-{{ $vol.configMap.name }}{{end}}
+      {{- if $vol.configMap.defaultMode }}
+      defaultMode: {{ $vol.configMap.defaultMode }}
+      {{- end }}
+
+  {{- else if $vol.secret }}
+  - name: {{ $vol.name }}
+    secret:
+      secretName: {{ if $vol.secret.fullname }}{{ $vol.secret.fullname }}{{else}}{{ $name }}-{{ $vol.secret.secretName }}{{end}}
+  {{- else if $vol.nfs }}
+  - name: {{ $vol.name }}
+    nfs:
+      server: "{{ tpl $vol.nfs.server $ }}"
+      path: "{{ tpl $vol.nfs.path $ }}"
+  {{- else if $vol.hostPath }}
+  - name: {{ $vol.name }}
+    hostPath:
+      path: {{ $vol.hostPath.path }}
+      type: {{ $vol.type | default "DirectoryOrCreate" }}
+  {{- else if $vol.persistentVolumeClaim }}
+  - name: {{ $vol.name }}
+    persistentVolumeClaim:
+      claimName: {{ $vol.persistentVolumeClaim.claimName }}
+  {{- else }}
+  {{- end -}}
+  {{- end -}}
+  {{- end -}}
 {{- end -}}
 {{- end -}}
 
@@ -226,6 +278,121 @@ containers:
 {{- end }} {{/*End hooks*/}}
 
 
+{{/*
+Environment variable helpers
+*/}}
+{{- define "helm-base.envVars" -}}
+{{- $ctx := . }}
+{{- $result := dict }}
+
+{{- $globalEnv := default (dict) $ctx.Values.global.env }}
+{{- $chartEnv := default (dict) $ctx.Values.env }}
+{{- $containerEnv := default (dict) $ctx.env }}
+
+{{- range $src := (list $globalEnv $chartEnv $containerEnv) }}
+  {{- range $k, $v := $src }}
+    {{- if eq (kindOf $v) "map" }}
+      {{- range $ek, $ev := $v }}
+        {{- $_ := set $result $ek $ev }}
+      {{- end }}
+    {{- else }}
+      {{- $_ := set $result $k $v }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- toYaml $result }}
+{{- end -}}
+
+
+{{- define "helm-base.envFromList" -}}
+{{- $ctx := . }}
+{{- $items := list }}
+{{- $fullname := include "helm-base.fullname" $ctx }}
+
+{{- $chartEnvFrom := default (list) $ctx.Values.envFrom }}
+{{- if $chartEnvFrom }}
+  {{- if eq (kindOf $chartEnvFrom) "map" }}
+    {{- range $gk, $gv := $chartEnvFrom }}
+      {{- $items = concat $items $gv }}
+    {{- end }}
+  {{- else }}
+    {{- $items = concat $items $chartEnvFrom }}
+  {{- end }}
+{{- end }}
+
+{{- $containerEnvFrom := default (list) $ctx.envFrom }}
+{{- if $containerEnvFrom }}
+  {{- if eq (kindOf $containerEnvFrom) "map" }}
+    {{- range $gk, $gv := $containerEnvFrom }}
+      {{- $items = concat $items $gv }}
+    {{- end }}
+  {{- else }}
+    {{- $items = concat $items $containerEnvFrom }}
+  {{- end }}
+{{- end }}
+
+{{- if $items }}
+  {{- range $i, $e := $items }}
+    {{- if $e.configMapRef }}
+      {{- if and (not $e.configMapRef.fullname) $e.configMapRef.name }}
+        {{- $_ := set $e.configMapRef "name" (printf "%s-%s" $fullname $e.configMapRef.name) }}
+      {{- end }}
+    {{- end }}
+    {{- if $e.secretRef }}
+      {{- if and (not $e.secretRef.fullname) $e.secretRef.name }}
+        {{- $_ := set $e.secretRef "name" (printf "%s-%s" $fullname $e.secretRef.name) }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- toYaml $items }}
+{{- end }}
+{{- end -}}
+
+
+{{- define "helm-base.envRawList" -}}
+{{- $ctx := . }}
+{{- $items := list }}
+
+{{- $globalRaw := default (list) $ctx.Values.global.envRaw }}
+{{- if $globalRaw }}
+  {{- if eq (kindOf $globalRaw) "map" }}
+    {{- range $gk, $gv := $globalRaw }}
+      {{- $items = concat $items $gv }}
+    {{- end }}
+  {{- else }}
+    {{- $items = concat $items $globalRaw }}
+  {{- end }}
+{{- end }}
+
+{{- $chartRaw := default (list) $ctx.Values.envRaw }}
+{{- if $chartRaw }}
+  {{- if eq (kindOf $chartRaw) "map" }}
+    {{- range $gk, $gv := $chartRaw }}
+      {{- $items = concat $items $gv }}
+    {{- end }}
+  {{- else }}
+    {{- $items = concat $items $chartRaw }}
+  {{- end }}
+{{- end }}
+
+{{- $containerRaw := default (list) $ctx.envRaw }}
+{{- if $containerRaw }}
+  {{- if eq (kindOf $containerRaw) "map" }}
+    {{- range $gk, $gv := $containerRaw }}
+      {{- $items = concat $items $gv }}
+    {{- end }}
+  {{- else }}
+    {{- $items = concat $items $containerRaw }}
+  {{- end }}
+{{- end }}
+
+{{- if $items }}
+{{- toYaml $items }}
+{{- end }}
+{{- end -}}
+
+
 
 
 {{- define "helm-base.commonAnnotations" }}
@@ -291,7 +458,11 @@ deny all;
 {{- $pullSecrets := concat .Values.imagePullSecrets .Values.global.imagePullSecrets }}
 imagePullSecrets:
 {{- range $_, $ips := $pullSecrets }}
+{{- if kindOf $ips | eq "string" }}
 - name: {{ $ips }}
+{{- else }}
+- name: {{ $ips.name }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end -}}
@@ -326,16 +497,36 @@ hostAliases:
 {{- end -}}
 
 {{- define "helm-base.podSecurityContext" -}}
-{{- if .Values.securityContext.podSecurityContext }}
+{{- $ctx := . }}
+{{- $psc := dict }}
+{{- $globalSC := default (dict) $ctx.Values.global.securityContext }}
+{{- $chartSC := default (dict) $ctx.Values.securityContext }}
+{{- if $globalSC.podSecurityContext }}
+{{- $psc = mergeOverwrite $psc (deepCopy $globalSC.podSecurityContext) }}
+{{- end }}
+{{- if $chartSC.podSecurityContext }}
+{{- $psc = mergeOverwrite $psc (deepCopy $chartSC.podSecurityContext) }}
+{{- end }}
+{{- if $psc }}
 securityContext:
-{{ toYaml .Values.securityContext.podSecurityContext | indent 2 }}
+{{ toYaml $psc | indent 2 }}
 {{- end }}
 {{- end -}}
 
 {{- define "helm-base.containerSecurityContext" -}}
-{{- if .Values.securityContext.containerSecurityContext }}
+{{- $ctx := . }}
+{{- $csc := dict }}
+{{- $globalSC := default (dict) $ctx.Values.global.securityContext }}
+{{- $chartSC := default (dict) $ctx.Values.securityContext }}
+{{- if $globalSC.containerSecurityContext }}
+{{- $csc = mergeOverwrite $csc (deepCopy $globalSC.containerSecurityContext) }}
+{{- end }}
+{{- if $chartSC.containerSecurityContext }}
+{{- $csc = mergeOverwrite $csc (deepCopy $chartSC.containerSecurityContext) }}
+{{- end }}
+{{- if $csc }}
 securityContext:
-{{ toYaml .Values.securityContext.containerSecurityContext | indent 2 }}
+{{ toYaml $csc | indent 2 }}
 {{- end }}
 {{- end -}}
 

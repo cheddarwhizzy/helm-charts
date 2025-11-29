@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: scaledobject test
+templates:
+  - scaledobject.yaml
+tests:
+  - it: should not render scaledobject with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render scaledobject with basic config
+    set:
+      keda:
+        enabled: true
+        pollingInterval: 30
+        minReplicaCount: 1
+        maxReplicaCount: 10
+        cooldownPeriod: 300
+        triggers:
+          - type: prometheus
+            metadata:
+              serverAddress: http://prometheus:9090
+              metricName: http_requests_per_second
+              threshold: '10'
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.pollingInterval
+          value: 30
+      - equal:
+          path: spec.minReplicaCount
+          value: 1
+      - equal:
+          path: spec.maxReplicaCount
+          value: 10
+      - equal:
+          path: spec.cooldownPeriod
+          value: 300
+      - equal:
+          path: spec.triggers[0].type
+          value: prometheus
+      - equal:
+          path: spec.triggers[0].metadata.serverAddress
+          value: http://prometheus:9090
+      - equal:
+          path: spec.triggers[0].metadata.metricName
+          value: http_requests_per_second
+      - equal:
+          path: spec.triggers[0].metadata.threshold
+          value: '10'
+
+  - it: should render scaledobject with custom configuration
+    set:
+      keda:
+        enabled: true
+        pollingInterval: 60
+        minReplicaCount: 2
+        maxReplicaCount: 20
+        cooldownPeriod: 600
+        triggers:
+          - type: kafka
+            metadata:
+              bootstrapServers: kafka:9092
+              consumerGroup: my-group
+              topic: my-topic
+              lagThreshold: '100'
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ScaledObject
+      - equal:
+          path: spec.pollingInterval
+          value: 60
+      - equal:
+          path: spec.minReplicaCount
+          value: 2
+      - equal:
+          path: spec.maxReplicaCount
+          value: 20
+      - equal:
+          path: spec.cooldownPeriod
+          value: 600
+      - equal:
+          path: spec.triggers[0].type
+          value: kafka
+      - equal:
+          path: spec.triggers[0].metadata.bootstrapServers
+          value: kafka:9092

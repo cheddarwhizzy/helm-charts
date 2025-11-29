@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: job test
+templates:
+  - job.yaml
+tests:
+  - it: should not render job with default values (Deployment)
+    set:
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render job with basic config
+    set:
+      kind: Job
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Job
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.backoffLimit
+          value: 3
+
+  - it: should render job with custom configuration
+    set:
+      kind: Job
+      backoffLimit: 5
+      activeDeadlineSeconds: 1800
+      containers:
+        - name: job-app
+          image: myapp:v1.0.0
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.backoffLimit
+          value: 5
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 1800

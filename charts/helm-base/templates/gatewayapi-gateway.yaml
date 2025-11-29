@@ -1,0 +1,57 @@
+{{- if and .Values.gatewayApi.enabled .Values.gatewayApi.gateways }}
+{{- $root := . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $apiVersion := default "gateway.networking.k8s.io/v1" .Values.gatewayApi.apiVersion }}
+{{- $globalAnnotations := default (dict) .Values.gatewayApi.gatewayAnnotations }}
+{{- range $gateway := .Values.gatewayApi.gateways }}
+{{- $resourceName := printf "%s-%s" (include "helm-base.fullname" $root) (tpl $gateway.name $root) }}
+{{- if $gateway.fullname }}
+  {{- $resourceName = tpl $gateway.fullname $root }}
+{{- end }}
+{{- $annotations := mergeOverwrite (deepCopy $globalAnnotations) (default (dict) $gateway.annotations) }}
+---
+apiVersion: {{ default $apiVersion $gateway.apiVersion }}
+kind: Gateway
+metadata:
+  name: {{ $resourceName }}
+  {{- if $gateway.namespace }}
+  namespace: {{ tpl $gateway.namespace $root }}
+  {{- end }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  {{- if $gateway.labels }}
+{{ toYaml $gateway.labels | nindent 4 }}
+  {{- end }}
+  {{- if $annotations }}
+  annotations:
+  {{- range $key, $value := $annotations }}
+    {{ $key }}: {{ (tpl $value $root) | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  gatewayClassName: {{ tpl (default $.Values.gatewayApi.gatewayClassName $gateway.gatewayClassName) $root }}
+  {{- if $gateway.addresses }}
+  addresses:
+{{ tpl (toYaml $gateway.addresses) $root | indent 4 }}
+  {{- end }}
+  {{- if $gateway.listeners }}
+  listeners:
+    {{- range $listener := $gateway.listeners }}
+    - name: {{ tpl (default "http" $listener.name) $root }}
+      protocol: {{ default "HTTP" $listener.protocol }}
+      port: {{ default $.Values.gatewayApi.port $listener.port }}
+      {{- if $listener.hostname }}
+      hostname: {{ tpl $listener.hostname $root | quote }}
+      {{- end }}
+      {{- if $listener.allowedRoutes }}
+      allowedRoutes:
+{{ tpl (toYaml $listener.allowedRoutes) $root | indent 8 }}
+      {{- end }}
+      {{- if $listener.tls }}
+      tls:
+{{ tpl (toYaml $listener.tls) $root | indent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

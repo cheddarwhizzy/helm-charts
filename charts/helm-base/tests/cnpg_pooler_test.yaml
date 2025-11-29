@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: cnpg pooler test
+templates:
+  - cnpg-pooler.yaml
+tests:
+  - it: should not render cnpg pooler with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render cnpg pooler with basic config
+    set:
+      cnpg:
+        enabled: true
+        pooler:
+          enabled: true
+          type: rw
+          instances: 3
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Pooler
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-pooler
+      - equal:
+          path: spec.cluster.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.type
+          value: rw
+      - equal:
+          path: spec.instances
+          value: 3
+
+  - it: should render cnpg pooler with custom configuration
+    set:
+      cnpg:
+        enabled: true
+        pooler:
+          enabled: true
+          type: ro
+          instances: 2
+          poolMode: session
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Pooler
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-pooler
+      - equal:
+          path: spec.cluster.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.type
+          value: ro
+      - equal:
+          path: spec.instances
+          value: 2

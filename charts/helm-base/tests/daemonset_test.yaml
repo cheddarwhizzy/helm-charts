@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: daemonset test
+templates:
+  - daemonset.yaml
+tests:
+  - it: should not render daemonset with default values (Deployment)
+    set:
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render daemonset with basic config
+    set:
+      kind: DaemonSet
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+
+  - it: should render daemonset with custom values
+    set:
+      kind: DaemonSet
+      fullnameOverride: my-daemon-app
+      containers:
+        - name: daemon-app
+          image: myapp:v1.0.0
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: metadata.name
+          value: my-daemon-app

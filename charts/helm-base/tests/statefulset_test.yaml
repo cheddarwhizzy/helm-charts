@@ -1,0 +1,214 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: statefulset test
+templates:
+  - statefulset.yaml
+tests:
+  - it: should not render statefulset with default values (Deployment)
+    set:
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render statefulset with basic config
+    set:
+      kind: StatefulSet
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.replicas
+          value: 1
+      - equal:
+          path: spec.updateStrategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.serviceName
+          value: RELEASE-NAME-helm-base
+
+  - it: should render statefulset with custom values
+    set:
+      kind: StatefulSet
+      replicaCount: 3
+      fullnameOverride: my-stateful-app
+      statefulSet:
+        updateStrategy: OnDelete
+        serviceName: custom-service
+      containers:
+        - name: myapp
+          image: myapp:v1.0.0
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: metadata.name
+          value: my-stateful-app
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.updateStrategy.type
+          value: OnDelete
+      - equal:
+          path: spec.serviceName
+          value: custom-service
+
+  - it: should render statefulset with volume claim templates
+    set:
+      kind: StatefulSet
+      containers:
+        - name: app
+          image: nginx:latest
+      volumeClaimTemplates:
+        - metadata:
+            name: data
+          spec:
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 10Gi
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.volumeClaimTemplates[0].metadata.name
+          value: data
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.accessModes[0]
+          value: ReadWriteOnce
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 10Gi
+
+  - it: should render statefulset with map-based containers
+    set:
+      kind: StatefulSet
+      containers:
+        main:
+          image: postgres:14
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            base:
+              POSTGRES_DB: myapp
+              POSTGRES_USER: admin
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "500m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: postgres:14
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 5432
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: POSTGRES_DB
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: myapp
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 256Mi
+
+  - it: should render statefulset with legacy list-based containers
+    set:
+      kind: StatefulSet
+      containers:
+        - name: postgres-db
+          image: postgres:14
+          command:
+            - docker-entrypoint.sh
+            - postgres
+          env:
+            - name: POSTGRES_DB
+              value: legacydb
+            - name: POSTGRES_USER
+              value: legacyuser
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "1000m"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: postgres-db
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: postgres:14
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: docker-entrypoint.sh
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: POSTGRES_DB
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: legacydb
+
+  - it: should render statefulset with map-based init containers
+    set:
+      kind: StatefulSet
+      initContainers:
+        init-db:
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Initializing database"
+              sleep 5
+          env:
+            base:
+              INIT_MODE: setup
+      containers:
+        main:
+          image: postgres:14
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: init-db
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: busybox:latest
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].name
+          value: INIT_MODE
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].value
+          value: setup

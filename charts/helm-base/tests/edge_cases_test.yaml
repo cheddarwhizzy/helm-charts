@@ -1,0 +1,463 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: edge cases test
+templates:
+  - deployment.yaml
+tests:
+  # Multiple map-based containers
+  - it: should render multiple map-based containers
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http: 80
+        sidecar:
+          image: sidecar:latest
+          ports:
+            metrics: 9090
+        logger:
+          image: logger:latest
+          ports:
+            logs: 514
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.containers
+          count: 3
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: sidecar
+      - equal:
+          path: spec.template.spec.containers[2].name
+          value: logger
+
+  # Multiple map-based initContainers
+  - it: should render multiple map-based initContainers
+    set:
+      initContainers:
+        setup:
+          image: setup:latest
+        migrator:
+          image: migrate:latest
+        validator:
+          image: validate:latest
+        precheck:
+          image: precheck:latest
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers
+          count: 4
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: migrator
+      - equal:
+          path: spec.template.spec.initContainers[2].name
+          value: validator
+      - equal:
+          path: spec.template.spec.initContainers[3].name
+          value: precheck
+
+  # Container name from map key
+  - it: should use map key as container name when name not specified
+    set:
+      containers:
+        main-app:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main-app
+
+  # Container name override in map-based
+  - it: should use explicit name when provided in map-based container
+    set:
+      containers:
+        main:
+          name: custom-name
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: custom-name
+
+  # Empty optional fields
+  - it: should handle empty optional fields gracefully
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          # No command, args, ports, env, etc.
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: nginx:latest
+
+  # Complex env merging - global + chart + container
+  - it: should handle complex three-level env merging
+    set:
+      global:
+        env:
+          GLOBAL_ONLY: global
+          base:
+            SHARED: global-shared
+            OVERRIDE: global-value
+      env:
+        CHART_ONLY: chart
+        base:
+          SHARED: chart-shared
+          OVERRIDE: chart-value
+          CHART_GROUP: chart-group
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            CONTAINER_ONLY: container
+            base:
+              SHARED: container-shared
+              OVERRIDE: container-value
+              CONTAINER_GROUP: container-group
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          content:
+            - name: GLOBAL_ONLY
+              value: global
+      - containsDocument:
+          content:
+            - name: CHART_ONLY
+              value: chart
+      - containsDocument:
+          content:
+            - name: CONTAINER_ONLY
+              value: container
+      - containsDocument:
+          content:
+            - name: CHART_GROUP
+              value: chart-group
+      - containsDocument:
+          content:
+            - name: CONTAINER_GROUP
+              value: container-group
+
+  # Multiple containers with different env configs
+  - it: should handle multiple containers with different env configs
+    set:
+      global:
+        env:
+          SHARED_GLOBAL: shared
+      env:
+        SHARED_CHART: chart-shared
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            base:
+              MAIN_ONLY: main-value
+              SHARED_GLOBAL: main-override
+        sidecar:
+          image: sidecar:latest
+          env:
+            base:
+              SIDECAR_ONLY: sidecar-value
+              SHARED_GLOBAL: sidecar-override
+    asserts:
+      - equal:
+          path: spec.template.spec.containers
+          count: 2
+      - containsDocument:
+          content:
+            - name: MAIN_ONLY
+              value: main-value
+      - containsDocument:
+          content:
+            - name: SIDECAR_ONLY
+              value: sidecar-value
+
+  # Complex volumeMounts with map-based
+  - it: should handle complex volumeMounts with multiple volumes
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+        config:
+          configMap:
+            name: app-config
+        secrets:
+          secret:
+            secretName: app-secrets
+        storage:
+          persistentVolumeClaim:
+            claimName: data-pvc
+      containers:
+        main:
+          image: nginx:latest
+          volumeMounts:
+            data:
+              mountPath: /data
+            config:
+              mountPath: /etc/config
+              readOnly: true
+            secrets:
+              mountPath: /etc/secrets
+              readOnly: true
+            storage:
+              mountPath: /storage
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          count: 4
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 4
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].readOnly
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[2].readOnly
+          value: true
+
+  # Multiple containers with different volumeMounts
+  - it: should handle multiple containers with different volumeMounts
+    set:
+      volumes:
+        shared:
+          emptyDir: {}
+        main-only:
+          configMap:
+            name: main-config
+        sidecar-only:
+          secret:
+            secretName: sidecar-secrets
+      containers:
+        main:
+          image: nginx:latest
+          volumeMounts:
+            shared:
+              mountPath: /shared
+            main-only:
+              mountPath: /main-config
+        sidecar:
+          image: sidecar:latest
+          volumeMounts:
+            shared:
+              mountPath: /shared
+            sidecar-only:
+              mountPath: /sidecar-secrets
+              readOnly: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          count: 3
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 2
+      - equal:
+          path: spec.template.spec.containers[1].volumeMounts
+          count: 2
+      - equal:
+          path: spec.template.spec.containers[1].volumeMounts[1].readOnly
+          value: true
+
+  # Complex ports configuration
+  - it: should handle complex ports with map-based format
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http: 80
+            https: 443
+            metrics: 9090
+            debug: 9999
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          count: 4
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].containerPort
+          value: 443
+      - equal:
+          path: spec.template.spec.containers[0].ports[2].containerPort
+          value: 9090
+      - equal:
+          path: spec.template.spec.containers[0].ports[3].containerPort
+          value: 9999
+
+  # Ports with protocol in map-based format
+  - it: should handle ports with protocol in map-based format
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http:
+              port: 80
+              protocol: TCP
+            https:
+              port: 443
+              protocol: TCP
+            dns:
+              port: 53
+              protocol: UDP
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].protocol
+          value: TCP
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].protocol
+          value: TCP
+      - equal:
+          path: spec.template.spec.containers[0].ports[2].protocol
+          value: UDP
+
+  # All features combined - maximum complexity
+  - it: should handle maximum complexity with all features
+    set:
+      global:
+        env:
+          GLOBAL_VAR: global
+        envRaw:
+          - name: GLOBAL_RAW
+            value: global-raw
+      env:
+        CHART_VAR: chart
+        envFrom:
+          - configMapRef:
+              name: chart-config
+        envRaw:
+          - name: CHART_RAW
+            value: chart-raw
+      volumes:
+        data:
+          emptyDir: {}
+        config:
+          configMap:
+            name: app-config
+        storage:
+          persistentVolumeClaim:
+            claimName: data-pvc
+      initContainers:
+        setup:
+          image: setup:latest
+          env:
+            base:
+              SETUP_MODE: enabled
+        migrator:
+          image: migrate:latest
+          volumeMounts:
+            data:
+              mountPath: /data
+      containers:
+        main:
+          image: nginx:1.21
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo hello
+          workingDir: /app
+          ports:
+            http: 80
+          volumeMounts:
+            data:
+              mountPath: /data
+            config:
+              mountPath: /etc/config
+              readOnly: true
+          env:
+            base:
+              ENV: production
+              APP_NAME: main
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          envRaw:
+            - name: RAW_VAR
+              value: raw-value
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 80
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 5
+        sidecar:
+          image: sidecar:latest
+          ports:
+            metrics: 9090
+          env:
+            base:
+              SIDECAR_MODE: enabled
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.initContainers
+          count: 2
+      - equal:
+          path: spec.template.spec.containers
+          count: 2
+      - equal:
+          path: spec.template.spec.volumes
+          count: 3
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: sidecar
+      - containsDocument:
+          content:
+            - name: GLOBAL_VAR
+              value: global
+      - containsDocument:
+          content:
+            - name: CHART_VAR
+              value: chart
+      - containsDocument:
+          content:
+            - name: ENV
+              value: production
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-chart-config
+      - containsDocument:
+          content:
+            - name: RAW_VAR
+              value: raw-value
+

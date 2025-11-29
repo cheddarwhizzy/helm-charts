@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: prometheusrule test
+templates:
+  - prometheusrule.yaml
+tests:
+  - it: should not render prometheusrule with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render prometheusrule with basic config
+    set:
+      monitoring:
+        enabled: true
+        alert_name: my-app
+        severity: warning
+        rules:
+          my-rule:
+            groups:
+              - name: my-group
+                rules:
+                  - alert: MyAlert
+                    expr: up == 0
+                    for: 5m
+                    labels:
+                      severity: critical
+                    annotations:
+                      summary: "Service is down"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PrometheusRule
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.groups[0].name
+          value: my-group
+      - equal:
+          path: spec.groups[0].rules[0].alert
+          value: MyAlert
+      - equal:
+          path: spec.groups[0].rules[0].expr
+          value: up == 0
+      - equal:
+          path: spec.groups[0].rules[0].for
+          value: 5m
+      - equal:
+          path: spec.groups[0].rules[0].labels.severity
+          value: critical
+
+  - it: should render prometheusrule with redis preset
+    set:
+      monitoring:
+        enabled: true
+        presets:
+          redis:
+            enabled: true
+            name: my-redis
+            alert_name: redis-alerts
+            severity: critical
+            memory_threshold: 200
+            cpu_threshold: 90
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PrometheusRule
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - containsDocument:
+          path: spec.groups[0].rules[0].alert
+          content: RedisMemoryUsage
+
+  - it: should render prometheusrule with rds preset
+    set:
+      monitoring:
+        enabled: true
+        presets:
+          rds:
+            enabled: true
+            name: my-rds
+            alert_name: rds-alerts
+            severity: warning
+            memory_threshold: 150
+            cpu_threshold: 85
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: PrometheusRule
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - containsDocument:
+          path: spec.groups[0].rules[0].alert
+          content: RDSMemoryUsage

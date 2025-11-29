@@ -1,3 +1,4 @@
 .cr-release-packages
 requirements.lock
 *.tgz
+.DS_Store

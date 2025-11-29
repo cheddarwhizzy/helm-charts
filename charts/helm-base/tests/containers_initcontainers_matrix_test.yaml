@@ -1,0 +1,976 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: containers and initContainers matrix test - all workload types
+templates:
+  - deployment.yaml
+  - statefulset.yaml
+  - job.yaml
+  - cronjob.yaml
+  - daemonset.yaml
+tests:
+  # ============================================================================
+  # DEPLOYMENT - All combinations
+  # ============================================================================
+  
+  - it: should render Deployment with map-based containers and map-based initContainers
+    set:
+      kind: Deployment
+      initContainers:
+        setup:
+          image: setup:latest
+          env:
+            base:
+              INIT_MODE: setup
+        migrator:
+          image: migrate:latest
+          env:
+            base:
+              INIT_MODE: migrate
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http: 80
+          env:
+            base:
+              ENV: production
+        sidecar:
+          image: sidecar:latest
+          env:
+            base:
+              ENV: sidecar
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(migrator|setup)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(migrator|setup)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].name
+          pattern: ^(main|sidecar)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[1].name
+          pattern: ^(main|sidecar)$
+
+  - it: should render Deployment with map-based containers and list-based initContainers
+    set:
+      kind: Deployment
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-migrator
+          image: migrate:latest
+          envRaw:
+            - name: INIT_MODE
+              value: migrate
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http: 80
+          env:
+            base:
+              ENV: production
+        sidecar:
+          image: sidecar:latest
+          env:
+            base:
+              ENV: sidecar
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-migrator
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: sidecar
+
+  - it: should render Deployment with list-based containers and map-based initContainers
+    set:
+      kind: Deployment
+      initContainers:
+        setup:
+          image: setup:latest
+          env:
+            base:
+              INIT_MODE: setup
+        migrator:
+          image: migrate:latest
+          env:
+            base:
+              INIT_MODE: migrate
+      containers:
+        - name: legacy-app
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              name: http
+          envRaw:
+            - name: ENV
+              value: production
+        - name: legacy-sidecar
+          image: sidecar:latest
+          envRaw:
+            - name: ENV
+              value: sidecar
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(setup|migrator)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(setup|migrator)$
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-app
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: legacy-sidecar
+
+  - it: should render Deployment with list-based containers and list-based initContainers
+    set:
+      kind: Deployment
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-migrator
+          image: migrate:latest
+          envRaw:
+            - name: INIT_MODE
+              value: migrate
+      containers:
+        - name: legacy-app
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              name: http
+          envRaw:
+            - name: ENV
+              value: production
+        - name: legacy-sidecar
+          image: sidecar:latest
+          envRaw:
+            - name: ENV
+              value: sidecar
+    template: deployment.yaml
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-migrator
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-app
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: legacy-sidecar
+
+  # ============================================================================
+  # STATEFULSET - All combinations
+  # ============================================================================
+
+  - it: should render StatefulSet with map-based containers and map-based initContainers
+    set:
+      kind: StatefulSet
+      initContainers:
+        init-db:
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - echo "Initializing database"
+          env:
+            base:
+              INIT_MODE: setup
+        validator:
+          image: validate:latest
+          env:
+            base:
+              INIT_MODE: validate
+      containers:
+        main:
+          image: postgres:14
+          ports:
+            postgres: 5432
+          env:
+            base:
+              POSTGRES_DB: myapp
+        backup:
+          image: backup:latest
+          env:
+            base:
+              BACKUP_MODE: enabled
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(init-db|validator)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(init-db|validator)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].name
+          pattern: ^(main|backup)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[1].name
+          pattern: ^(main|backup)$
+
+  - it: should render StatefulSet with map-based containers and list-based initContainers
+    set:
+      kind: StatefulSet
+      initContainers:
+        - name: legacy-init-db
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - echo "Initializing database"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-validator
+          image: validate:latest
+          envRaw:
+            - name: INIT_MODE
+              value: validate
+      containers:
+        main:
+          image: postgres:14
+          ports:
+            postgres: 5432
+          env:
+            base:
+              POSTGRES_DB: myapp
+        backup:
+          image: backup:latest
+          env:
+            base:
+              BACKUP_MODE: enabled
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-init-db
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-validator
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].name
+          pattern: ^(main|backup)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[1].name
+          pattern: ^(main|backup)$
+
+  - it: should render StatefulSet with list-based containers and map-based initContainers
+    set:
+      kind: StatefulSet
+      initContainers:
+        init-db:
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - echo "Initializing database"
+          env:
+            base:
+              INIT_MODE: setup
+        validator:
+          image: validate:latest
+          env:
+            base:
+              INIT_MODE: validate
+      containers:
+        - name: legacy-postgres
+          image: postgres:14
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envRaw:
+            - name: POSTGRES_DB
+              value: myapp
+        - name: legacy-backup
+          image: backup:latest
+          envRaw:
+            - name: BACKUP_MODE
+              value: enabled
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(init-db|validator)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(init-db|validator)$
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-postgres
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: legacy-backup
+
+  - it: should render StatefulSet with list-based containers and list-based initContainers
+    set:
+      kind: StatefulSet
+      initContainers:
+        - name: legacy-init-db
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - echo "Initializing database"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-validator
+          image: validate:latest
+          envRaw:
+            - name: INIT_MODE
+              value: validate
+      containers:
+        - name: legacy-postgres
+          image: postgres:14
+          ports:
+            - containerPort: 5432
+              name: postgres
+          envRaw:
+            - name: POSTGRES_DB
+              value: myapp
+        - name: legacy-backup
+          image: backup:latest
+          envRaw:
+            - name: BACKUP_MODE
+              value: enabled
+    template: statefulset.yaml
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-init-db
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-validator
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-postgres
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: legacy-backup
+
+  # ============================================================================
+  # JOB - All combinations
+  # ============================================================================
+
+  - it: should render Job with map-based containers and map-based initContainers
+    set:
+      kind: Job
+      initContainers:
+        setup:
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up job environment"
+          env:
+            base:
+              INIT_MODE: setup
+        preprocessor:
+          image: preprocess:latest
+          env:
+            base:
+              INIT_MODE: preprocess
+      containers:
+        worker:
+          image: worker:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Job completed
+          env:
+            base:
+              JOB_MODE: batch
+    template: job.yaml
+    asserts:
+      - isKind:
+          of: Job
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(setup|preprocessor)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(setup|preprocessor)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].name
+          pattern: ^worker$
+
+  - it: should render Job with map-based containers and list-based initContainers
+    set:
+      kind: Job
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up job environment"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-preprocessor
+          image: preprocess:latest
+          envRaw:
+            - name: INIT_MODE
+              value: preprocess
+      containers:
+        worker:
+          image: worker:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Job completed
+          env:
+            base:
+              JOB_MODE: batch
+    template: job.yaml
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-preprocessor
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].name
+          pattern: ^worker$
+
+  - it: should render Job with list-based containers and map-based initContainers
+    set:
+      kind: Job
+      initContainers:
+        setup:
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up job environment"
+          env:
+            base:
+              INIT_MODE: setup
+        preprocessor:
+          image: preprocess:latest
+          env:
+            base:
+              INIT_MODE: preprocess
+      containers:
+        - name: legacy-worker
+          image: worker:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Job completed
+          envRaw:
+            - name: JOB_MODE
+              value: batch
+    template: job.yaml
+    asserts:
+      - isKind:
+          of: Job
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(setup|preprocessor)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(setup|preprocessor)$
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-worker
+
+  - it: should render Job with list-based containers and list-based initContainers
+    set:
+      kind: Job
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up job environment"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-preprocessor
+          image: preprocess:latest
+          envRaw:
+            - name: INIT_MODE
+              value: preprocess
+      containers:
+        - name: legacy-worker
+          image: worker:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Job completed
+          envRaw:
+            - name: JOB_MODE
+              value: batch
+    template: job.yaml
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-preprocessor
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-worker
+
+  # ============================================================================
+  # CRONJOB - All combinations
+  # ============================================================================
+
+  - it: should render CronJob with map-based containers and map-based initContainers
+    set:
+      kind: CronJob
+      schedule: "0 0 * * *"
+      initContainers:
+        setup:
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up cron job environment"
+          env:
+            base:
+              INIT_MODE: setup
+        validator:
+          image: validate:latest
+          env:
+            base:
+              INIT_MODE: validate
+      containers:
+        job:
+          image: job:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Cron job running
+          env:
+            base:
+              CRON_MODE: enabled
+    template: cronjob.yaml
+    asserts:
+      - isKind:
+          of: CronJob
+      - matchRegex:
+          documentIndex: 0
+          path: spec.jobTemplate.spec.template.spec.initContainers[0].name
+          pattern: ^(setup|validator)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.jobTemplate.spec.template.spec.initContainers[1].name
+          pattern: ^(setup|validator)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.jobTemplate.spec.template.spec.containers[0].name
+          pattern: ^job$
+
+  - it: should render CronJob with map-based containers and list-based initContainers
+    set:
+      kind: CronJob
+      schedule: "0 0 * * *"
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up cron job environment"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-validator
+          image: validate:latest
+          envRaw:
+            - name: INIT_MODE
+              value: validate
+      containers:
+        job:
+          image: job:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Cron job running
+          env:
+            base:
+              CRON_MODE: enabled
+    template: cronjob.yaml
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.initContainers[1].name
+          value: legacy-validator
+      - matchRegex:
+          documentIndex: 0
+          path: spec.jobTemplate.spec.template.spec.containers[0].name
+          pattern: ^job$
+
+  - it: should render CronJob with list-based containers and map-based initContainers
+    set:
+      kind: CronJob
+      schedule: "0 0 * * *"
+      initContainers:
+        setup:
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up cron job environment"
+          env:
+            base:
+              INIT_MODE: setup
+        validator:
+          image: validate:latest
+          env:
+            base:
+              INIT_MODE: validate
+      containers:
+        - name: legacy-job
+          image: job:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Cron job running
+          envRaw:
+            - name: CRON_MODE
+              value: enabled
+    template: cronjob.yaml
+    asserts:
+      - isKind:
+          of: CronJob
+      - matchRegex:
+          documentIndex: 0
+          path: spec.jobTemplate.spec.template.spec.initContainers[0].name
+          pattern: ^(setup|validator)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.jobTemplate.spec.template.spec.initContainers[1].name
+          pattern: ^(setup|validator)$
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].name
+          value: legacy-job
+
+  - it: should render CronJob with list-based containers and list-based initContainers
+    set:
+      kind: CronJob
+      schedule: "0 0 * * *"
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up cron job environment"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-validator
+          image: validate:latest
+          envRaw:
+            - name: INIT_MODE
+              value: validate
+      containers:
+        - name: legacy-job
+          image: job:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo Cron job running
+          envRaw:
+            - name: CRON_MODE
+              value: enabled
+    template: cronjob.yaml
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.initContainers[1].name
+          value: legacy-validator
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].name
+          value: legacy-job
+
+  # ============================================================================
+  # DAEMONSET - All combinations
+  # ============================================================================
+
+  - it: should render DaemonSet with map-based containers and map-based initContainers
+    set:
+      kind: DaemonSet
+      initContainers:
+        setup:
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up daemon environment"
+          env:
+            base:
+              INIT_MODE: setup
+        config-loader:
+          image: config-loader:latest
+          env:
+            base:
+              INIT_MODE: config
+      containers:
+        agent:
+          image: agent:latest
+          ports:
+            metrics: 9090
+          env:
+            base:
+              AGENT_MODE: daemon
+        logger:
+          image: logger:latest
+          env:
+            base:
+              LOGGER_MODE: enabled
+    template: daemonset.yaml
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(setup|config-loader)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(setup|config-loader)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].name
+          pattern: ^(agent|logger)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[1].name
+          pattern: ^(agent|logger)$
+
+  - it: should render DaemonSet with map-based containers and list-based initContainers
+    set:
+      kind: DaemonSet
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up daemon environment"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-config-loader
+          image: config-loader:latest
+          envRaw:
+            - name: INIT_MODE
+              value: config
+      containers:
+        agent:
+          image: agent:latest
+          ports:
+            metrics: 9090
+          env:
+            base:
+              AGENT_MODE: daemon
+        logger:
+          image: logger:latest
+          env:
+            base:
+              LOGGER_MODE: enabled
+    template: daemonset.yaml
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-config-loader
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[0].name
+          pattern: ^(agent|logger)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.containers[1].name
+          pattern: ^(agent|logger)$
+
+  - it: should render DaemonSet with list-based containers and map-based initContainers
+    set:
+      kind: DaemonSet
+      initContainers:
+        setup:
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up daemon environment"
+          env:
+            base:
+              INIT_MODE: setup
+        config-loader:
+          image: config-loader:latest
+          env:
+            base:
+              INIT_MODE: config
+      containers:
+        - name: legacy-agent
+          image: agent:latest
+          ports:
+            - containerPort: 9090
+              name: metrics
+          envRaw:
+            - name: AGENT_MODE
+              value: daemon
+        - name: legacy-logger
+          image: logger:latest
+          envRaw:
+            - name: LOGGER_MODE
+              value: enabled
+    template: daemonset.yaml
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[0].name
+          pattern: ^(setup|config-loader)$
+      - matchRegex:
+          documentIndex: 0
+          path: spec.template.spec.initContainers[1].name
+          pattern: ^(setup|config-loader)$
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-agent
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: legacy-logger
+
+  - it: should render DaemonSet with list-based containers and list-based initContainers
+    set:
+      kind: DaemonSet
+      initContainers:
+        - name: legacy-setup
+          image: setup:latest
+          command:
+            - sh
+            - -c
+            - echo "Setting up daemon environment"
+          envRaw:
+            - name: INIT_MODE
+              value: setup
+        - name: legacy-config-loader
+          image: config-loader:latest
+          envRaw:
+            - name: INIT_MODE
+              value: config
+      containers:
+        - name: legacy-agent
+          image: agent:latest
+          ports:
+            - containerPort: 9090
+              name: metrics
+          envRaw:
+            - name: AGENT_MODE
+              value: daemon
+        - name: legacy-logger
+          image: logger:latest
+          envRaw:
+            - name: LOGGER_MODE
+              value: enabled
+    template: daemonset.yaml
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: legacy-config-loader
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-agent
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: legacy-logger

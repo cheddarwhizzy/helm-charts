@@ -1,0 +1,9 @@
+# QA environment values
+# Uses registry.cheddarwhizzy.com for image registry
+
+plugin:
+  image:
+    repository: registry.cheddarwhizzy.com/cheddarwhizzy/argocd-scm-k8s-plugin
+    tag: "qa"
+    pullPolicy: IfNotPresent
+

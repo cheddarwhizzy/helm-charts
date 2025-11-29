@@ -1,0 +1,107 @@
+# Configuration for cheddarwhizzy-scm-k8s-plugin
+# This plugin discovers GitHub repos and their Kubernetes charts for ArgoCD ApplicationSet
+
+plugin:
+  # Helm-base subchart configuration
+  fullnameOverride: cheddarwhizzy-scm-k8s-plugin
+  nameOverride: ""
+  
+  replicaCount: 1
+  
+  kind: Deployment
+  
+  image:
+    repository: ghcr.io/cheddarwhizzy/argocd-scm-k8s-plugin
+    tag: "0.2.0"
+    pullPolicy: IfNotPresent
+  
+  # Image pull secrets (required if repository is private)
+  # For GHCR (prod), create secret with:
+  # kubectl create secret docker-registry ghcr-image-pull-secret \
+  #   --docker-server=ghcr.io --docker-username=cheddarwhizzy \
+  #   --docker-password=<GITHUB_TOKEN> --namespace=argocd
+  # For registry.cheddarwhizzy.com (qa/staging), create secret with:
+  # kubectl create secret docker-registry registry-image-pull-secret \
+  #   --docker-server=registry.cheddarwhizzy.com \
+  #   --docker-username=<USERNAME> \
+  #   --docker-password=<PASSWORD> \
+  #   --namespace=argocd
+  imagePullSecrets:
+  - docker-registry
+  
+  services:
+    - name: plugin
+      fullname: cheddarwhizzy-scm-k8s-plugin-plugin
+      type: ClusterIP
+      ports:
+        - name: http
+          port: 8080
+          targetPort: 8080
+          protocol: TCP
+  
+  containers:
+    - name: plugin-server
+      port: 8080
+      
+      env:
+        PORT: "8080"
+        # GITHUB_TOKEN: ""  # Will be set from secret
+        DEFAULT_BRANCH: "main"
+      
+      envFrom:
+        - secretRef:
+            fullname: github-token
+            # Create with: kubectl create secret generic github-token \
+            #   --from-literal=GITHUB_TOKEN=<YOUR_GITHUB_TOKEN> --namespace=argocd
+            # Required scopes: repo, read:org
+      
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+      
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      
+      readinessProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        timeoutSeconds: 3
+        failureThreshold: 3
+
+  # Raw resource for ArgoCD plugin ConfigMap (must be in argocd namespace)
+  # The ConfigMap format for ApplicationSet plugins requires baseUrl and token as direct keys
+  rawResources:
+    cheddarwhizzy-scm-k8s-plugin:
+      type: ConfigMap
+      apiVersion: v1
+      namespace: argocd
+      labels:
+        app.kubernetes.io/component: applicationset-plugin
+        app.kubernetes.io/part-of: argocd
+      data:
+        # baseUrl is required - the base URL of the plugin service (ArgoCD appends /v1/generator.getParams)
+        baseUrl: http://cheddarwhizzy-scm-k8s-plugin-plugin.argocd.svc.cluster.local:8080
+        # token is required by ArgoCD - reference a secret (plugin doesn't actually use it for auth)
+        # Format: $<secret-name>:<key> or empty string
+        token: "$plugin-token:token"
+        # requestTimeout is optional - timeout for HTTP requests (default: 60s)
+        requestTimeout: "60"
+
+# GitHub configuration
+github:
+  tokenSecretName: github-token
+  tokenSecretKey: GITHUB_TOKEN
+

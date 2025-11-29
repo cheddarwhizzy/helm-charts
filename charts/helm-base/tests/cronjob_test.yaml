@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: cronjob test
+templates:
+  - cronjob.yaml
+tests:
+  - it: should not render cronjob with default values (Deployment)
+    set:
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render cronjob with basic config
+    set:
+      kind: CronJob
+      schedule: "0 */6 * * *"
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CronJob
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base
+      - equal:
+          path: spec.schedule
+          value: "0 */6 * * *"
+      - equal:
+          path: spec.suspend
+          value: false
+
+  - it: should render cronjob with custom configuration
+    set:
+      kind: CronJob
+      schedule: "*/15 * * * *"
+      concurrencyPolicy: Forbid
+      successfulJobsHistoryLimit: 5
+      failedJobsHistoryLimit: 2
+      startingDeadlineSeconds: 300
+      suspend: true
+      backoffLimit: 5
+      activeDeadlineSeconds: 1800
+      ttlSecondsAfterFinished: 3600
+      containers:
+        - name: cronjob-app
+          image: myapp:v1.0.0
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.schedule
+          value: "*/15 * * * *"
+      - equal:
+          path: spec.concurrencyPolicy
+          value: Forbid
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 5
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 2
+      - equal:
+          path: spec.startingDeadlineSeconds
+          value: 300
+      - equal:
+          path: spec.suspend
+          value: true
+      - equal:
+          path: spec.jobTemplate.spec.backoffLimit
+          value: 5
+      - equal:
+          path: spec.jobTemplate.spec.activeDeadlineSeconds
+          value: 1800
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 3600
+
+  - it: should fail without schedule
+    set:
+      kind: CronJob
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - failedTemplate:
+          errorMessage: "A valid .Values.schedule entry required!"

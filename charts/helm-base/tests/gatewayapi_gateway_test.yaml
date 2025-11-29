@@ -1,0 +1,95 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: gatewayapi gateway test
+templates:
+  - gatewayapi-gateway.yaml
+tests:
+  - it: should not render gatewayapi gateway with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render gatewayapi gateway with basic config
+    set:
+      gatewayApi:
+        enabled: true
+        apiVersion: gateway.networking.k8s.io/v1
+        gatewayClassName: istio
+        port: 80
+        gateways:
+          - name: public
+            gatewayClassName: istio
+            namespace: istio-gateway
+            listeners:
+              - name: http
+                protocol: HTTP
+                port: 80
+                hostname: "app.example.com"
+                allowedRoutes:
+                  namespaces:
+                    from: Same
+                  kinds:
+                    - kind: HTTPRoute
+                      group: gateway.networking.k8s.io
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Gateway
+      - equal:
+          path: metadata.name
+          value: public
+      - equal:
+          path: spec.gatewayClassName
+          value: istio
+      - equal:
+          path: spec.listeners[0].name
+          value: http
+      - equal:
+          path: spec.listeners[0].protocol
+          value: HTTP
+      - equal:
+          path: spec.listeners[0].port
+          value: 80
+      - equal:
+          path: spec.listeners[0].hostname
+          value: app.example.com
+
+  - it: should render gatewayapi gateway with TLS
+    set:
+      gatewayApi:
+        enabled: true
+        apiVersion: gateway.networking.k8s.io/v1
+        gatewayClassName: istio
+        gateways:
+          - name: secure-gateway
+            gatewayClassName: istio
+            listeners:
+              - name: https
+                protocol: HTTPS
+                port: 443
+                hostname: "secure.example.com"
+                allowedRoutes:
+                  namespaces:
+                    from: Same
+                tls:
+                  mode: Terminate
+                  certificateRefs:
+                    - name: app-cert
+                      kind: Secret
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Gateway
+      - equal:
+          path: spec.listeners[0].protocol
+          value: HTTPS
+      - equal:
+          path: spec.listeners[0].port
+          value: 443
+      - equal:
+          path: spec.listeners[0].tls.mode
+          value: Terminate
+      - equal:
+          path: spec.listeners[0].tls.certificateRefs[0].name
+          value: app-cert

@@ -20,7 +20,7 @@ tests:
           value: RELEASE-NAME-helm-base
       - equal:
           path: spec.selector.matchLabels.app
-          value: RELEASE-NAME
+          value: helm-base
       - equal:
           path: spec.podMetricsEndpoints[0].interval
           value: 30s

@@ -1,0 +1,426 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: volumes comprehensive test
+templates:
+  - deployment.yaml
+tests:
+  # Map-based volumes - emptyDir
+  - it: should render map-based emptyDir volume
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: data
+      - containsDocument:
+          content:
+            name: data
+            emptyDir: {}
+
+  # List-based volumes - emptyDir
+  - it: should render list-based emptyDir volume
+    set:
+      volumes:
+        - name: data
+          emptyDir: {}
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: data
+      - containsDocument:
+          content:
+            name: data
+            emptyDir: {}
+
+  # Map-based volumes - configMap
+  - it: should render map-based configMap volume
+    set:
+      volumes:
+        config:
+          configMap:
+            name: app-config
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: config
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: RELEASE-NAME-helm-base-app-config
+
+  # Map-based volumes - configMap with fullname
+  - it: should render map-based configMap volume with fullname override
+    set:
+      volumes:
+        config:
+          configMap:
+            fullname: custom-configmap
+            name: app-config
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: custom-configmap
+
+  # Map-based volumes - configMap with defaultMode
+  - it: should render map-based configMap volume with defaultMode
+    set:
+      volumes:
+        config:
+          configMap:
+            name: app-config
+            defaultMode: 420
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.defaultMode
+          value: 420
+
+  # List-based volumes - configMap
+  - it: should render list-based configMap volume
+    set:
+      volumes:
+        - name: config
+          configMap:
+            name: app-config
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: config
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: RELEASE-NAME-helm-base-app-config
+
+  # Map-based volumes - secret
+  - it: should render map-based secret volume
+    set:
+      volumes:
+        secrets:
+          secret:
+            secretName: app-secret
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: secrets
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: RELEASE-NAME-helm-base-app-secret
+
+  # Map-based volumes - secret with fullname
+  - it: should render map-based secret volume with fullname override
+    set:
+      volumes:
+        secrets:
+          secret:
+            fullname: custom-secret
+            secretName: app-secret
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: custom-secret
+
+  # List-based volumes - secret
+  - it: should render list-based secret volume
+    set:
+      volumes:
+        - name: secrets
+          secret:
+            secretName: app-secret
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: secrets
+      - equal:
+          path: spec.template.spec.volumes[0].secret.secretName
+          value: RELEASE-NAME-helm-base-app-secret
+
+  # Map-based volumes - hostPath
+  - it: should render map-based hostPath volume
+    set:
+      volumes:
+        host-data:
+          hostPath:
+            path: /host/data
+          type: DirectoryOrCreate
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: host-data
+      - equal:
+          path: spec.template.spec.volumes[0].hostPath.path
+          value: /host/data
+      - equal:
+          path: spec.template.spec.volumes[0].hostPath.type
+          value: DirectoryOrCreate
+
+  # Map-based volumes - hostPath with default type
+  - it: should render map-based hostPath volume with default type
+    set:
+      volumes:
+        host-data:
+          hostPath:
+            path: /host/data
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].hostPath.type
+          value: DirectoryOrCreate
+
+  # List-based volumes - hostPath
+  - it: should render list-based hostPath volume
+    set:
+      volumes:
+        - name: host-data
+          hostPath:
+            path: /host/data
+          type: Directory
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: host-data
+      - equal:
+          path: spec.template.spec.volumes[0].hostPath.path
+          value: /host/data
+      - equal:
+          path: spec.template.spec.volumes[0].hostPath.type
+          value: Directory
+
+  # Map-based volumes - persistentVolumeClaim
+  - it: should render map-based persistentVolumeClaim volume
+    set:
+      volumes:
+        storage:
+          persistentVolumeClaim:
+            claimName: data-pvc
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: storage
+      - equal:
+          path: spec.template.spec.volumes[0].persistentVolumeClaim.claimName
+          value: data-pvc
+
+  # List-based volumes - persistentVolumeClaim
+  - it: should render list-based persistentVolumeClaim volume
+    set:
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: data-pvc
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: storage
+      - equal:
+          path: spec.template.spec.volumes[0].persistentVolumeClaim.claimName
+          value: data-pvc
+
+  # Map-based volumes - nfs
+  - it: should render map-based nfs volume
+    set:
+      volumes:
+        nfs-data:
+          nfs:
+            server: nfs.example.com
+            path: /exports/data
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: nfs-data
+      - equal:
+          path: spec.template.spec.volumes[0].nfs.server
+          value: nfs.example.com
+      - equal:
+          path: spec.template.spec.volumes[0].nfs.path
+          value: /exports/data
+
+  # List-based volumes - nfs
+  - it: should render list-based nfs volume
+    set:
+      volumes:
+        - name: nfs-data
+          nfs:
+            server: nfs.example.com
+            path: /exports/data
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: nfs-data
+      - equal:
+          path: spec.template.spec.volumes[0].nfs.server
+          value: nfs.example.com
+
+  # Multiple map-based volumes
+  - it: should render multiple map-based volumes
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+        config:
+          configMap:
+            name: app-config
+        storage:
+          persistentVolumeClaim:
+            claimName: data-pvc
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          count: 3
+      - containsDocument:
+          content:
+            name: data
+            emptyDir: {}
+      - containsDocument:
+          content:
+            name: config
+      - containsDocument:
+          content:
+            name: storage
+
+  # Multiple list-based volumes
+  - it: should render multiple list-based volumes
+    set:
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: app-config
+        - name: storage
+          persistentVolumeClaim:
+            claimName: data-pvc
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          count: 3
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: data
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: config
+      - equal:
+          path: spec.template.spec.volumes[2].name
+          value: storage
+
+  # Map-based volumes with volumeMounts
+  - it: should render map-based volumes with volumeMounts
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+        config:
+          configMap:
+            name: app-config
+      containers:
+        main:
+          image: nginx:latest
+          volumeMounts:
+            data:
+              mountPath: /data
+            config:
+              mountPath: /etc/config
+              readOnly: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes
+          count: 2
+      - containsDocument:
+          content:
+            name: data
+      - containsDocument:
+          content:
+            name: config
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 2
+      - containsDocument:
+          content:
+            name: data
+            mountPath: /data
+      - containsDocument:
+          content:
+            name: config
+            mountPath: /etc/config
+            readOnly: true
+
+  # List-based volumes with volumeMounts
+  - it: should render list-based volumes with volumeMounts
+    set:
+      volumes:
+        - name: data
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: app-config
+      containers:
+        - name: app
+          image: nginx:latest
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: data
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: data
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].readOnly
+          value: true
+

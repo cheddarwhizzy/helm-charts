@@ -1,0 +1,411 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: initcontainers comprehensive test
+templates:
+  - deployment.yaml
+tests:
+  # Map-based initContainers - Basic
+  - it: should render map-based initContainer with basic config
+    set:
+      initContainers:
+        migrator:
+          image: migrate:latest
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: migrator
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: migrate:latest
+
+  # List-based initContainers - Basic
+  - it: should render list-based initContainer with basic config
+    set:
+      initContainers:
+        - name: setup
+          image: setup:latest
+      containers:
+        - name: app
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: setup:latest
+
+  # Map-based initContainers - Command & Args
+  - it: should render map-based initContainer with command and args
+    set:
+      initContainers:
+        migrator:
+          image: migrate:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - migrate up
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.initContainers[0].args[0]
+          value: migrate up
+
+  # List-based initContainers - Command & Args
+  - it: should render list-based initContainer with command and args
+    set:
+      initContainers:
+        - name: setup
+          image: setup:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo "Setting up"
+      containers:
+        - name: app
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.initContainers[0].args[0]
+          value: echo "Setting up"
+
+  # Map-based initContainers - Working Directory
+  - it: should render map-based initContainer with workingDir
+    set:
+      initContainers:
+        migrator:
+          image: migrate:latest
+          workingDir: /migrations
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].workingDir
+          value: /migrations
+
+  # Map-based initContainers - TTY & STDIN
+  - it: should render map-based initContainer with tty and stdin
+    set:
+      initContainers:
+        setup:
+          image: setup:latest
+          tty: true
+          stdin: true
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].tty
+          value: true
+      - equal:
+          path: spec.template.spec.initContainers[0].stdin
+          value: true
+
+  # Map-based initContainers - Ports
+  - it: should render map-based initContainer with ports
+    set:
+      initContainers:
+        setup:
+          image: setup:latest
+          ports:
+            debug: 9999
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].ports[0].name
+          value: p-debug
+      - equal:
+          path: spec.template.spec.initContainers[0].ports[0].containerPort
+          value: 9999
+
+  # List-based initContainers - Ports
+  - it: should render list-based initContainer with ports
+    set:
+      initContainers:
+        - name: setup
+          image: setup:latest
+          ports:
+            - containerPort: 9999
+              name: debug
+      containers:
+        - name: app
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].ports[0].name
+          value: debug
+      - equal:
+          path: spec.template.spec.initContainers[0].ports[0].containerPort
+          value: 9999
+
+  # Map-based initContainers - VolumeMounts
+  - it: should render map-based initContainer with volumeMounts
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+        config:
+          configMap:
+            name: init-config
+      initContainers:
+        migrator:
+          image: migrate:latest
+          volumeMounts:
+            data:
+              mountPath: /data
+            config:
+              mountPath: /config
+              readOnly: true
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].volumeMounts[0].name
+          value: data
+      - equal:
+          path: spec.template.spec.initContainers[0].volumeMounts[1].name
+          value: config
+      - equal:
+          path: spec.template.spec.initContainers[0].volumeMounts[1].readOnly
+          value: true
+
+  # List-based initContainers - VolumeMounts
+  - it: should render list-based initContainer with volumeMounts
+    set:
+      volumes:
+        - name: data
+          emptyDir: {}
+      initContainers:
+        - name: setup
+          image: setup:latest
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              subPath: init
+      containers:
+        - name: app
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].volumeMounts[0].name
+          value: data
+      - equal:
+          path: spec.template.spec.initContainers[0].volumeMounts[0].subPath
+          value: init
+
+  # Map-based initContainers - Resources
+  - it: should render map-based initContainer with resources
+    set:
+      initContainers:
+        migrator:
+          image: migrate:latest
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].resources.requests.memory
+          value: 64Mi
+      - equal:
+          path: spec.template.spec.initContainers[0].resources.limits.cpu
+          value: 200m
+
+  # Map-based initContainers - Security Context
+  - it: should render map-based initContainer with security context
+    set:
+      initContainers:
+        setup:
+          image: setup:latest
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.runAsNonRoot
+          value: true
+
+  # Map-based initContainers - Privileged
+  - it: should render map-based initContainer with privileged
+    set:
+      initContainers:
+        setup:
+          image: setup:latest
+          privileged: true
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].securityContext.privileged
+          value: true
+
+  # Multiple map-based initContainers
+  - it: should render multiple map-based initContainers
+    set:
+      initContainers:
+        setup:
+          image: setup:latest
+        migrator:
+          image: migrate:latest
+        validator:
+          image: validate:latest
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers
+          count: 3
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: migrator
+      - equal:
+          path: spec.template.spec.initContainers[2].name
+          value: validator
+
+  # Multiple list-based initContainers
+  - it: should render multiple list-based initContainers
+    set:
+      initContainers:
+        - name: setup
+          image: setup:latest
+        - name: migrator
+          image: migrate:latest
+      containers:
+        - name: app
+          image: app:latest
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers
+          count: 2
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: migrator
+
+  # Map-based initContainers - All features combined
+  - it: should render map-based initContainer with all features
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+      initContainers:
+        migrator:
+          image: migrate:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - migrate up
+          workingDir: /migrations
+          ports:
+            debug: 9999
+          volumeMounts:
+            data:
+              mountPath: /data
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+          securityContext:
+            runAsUser: 1000
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: migrator
+      - equal:
+          path: spec.template.spec.initContainers[0].workingDir
+          value: /migrations
+      - equal:
+          path: spec.template.spec.initContainers[0].ports[0].containerPort
+          value: 9999
+      - equal:
+          path: spec.template.spec.initContainers[0].volumeMounts[0].name
+          value: data
+
+  # List-based initContainers - All features combined
+  - it: should render list-based initContainer with all features
+    set:
+      volumes:
+        - name: data
+          emptyDir: {}
+      initContainers:
+        - name: setup
+          image: setup:latest
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo "Setup complete"
+          workingDir: /setup
+          ports:
+            - containerPort: 9999
+              name: debug
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+          securityContext:
+            runAsUser: 1000
+      containers:
+        - name: app
+          image: app:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: setup
+      - equal:
+          path: spec.template.spec.initContainers[0].workingDir
+          value: /setup
+      - equal:
+          path: spec.template.spec.initContainers[0].ports[0].name
+          value: debug
+

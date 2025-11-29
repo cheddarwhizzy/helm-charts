@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: crd test
+templates:
+  - crd.yaml
+tests:
+  - it: should not render crd with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render crd with basic config
+    set:
+      crds:
+        enabled: true
+        crds:
+          - name: my-crd
+            spec:
+              group: example.com
+              version: v1
+              scope: Namespaced
+              names:
+                plural: mycrds
+                singular: mycrd
+                kind: MyCrd
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CustomResourceDefinition
+      - equal:
+          path: metadata.name
+          value: mycrds.example.com
+      - equal:
+          path: spec.group
+          value: example.com
+      - equal:
+          path: spec.version
+          value: v1
+      - equal:
+          path: spec.scope
+          value: Namespaced
+      - equal:
+          path: spec.names.plural
+          value: mycrds
+      - equal:
+          path: spec.names.singular
+          value: mycrd
+      - equal:
+          path: spec.names.kind
+          value: MyCrd
+
+  - it: should render multiple crds
+    set:
+      crds:
+        enabled: true
+        crds:
+          - name: first-crd
+            spec:
+              group: first.example.com
+              version: v1
+              scope: Namespaced
+              names:
+                plural: firstcrds
+                singular: firstcrd
+                kind: FirstCrd
+          - name: second-crd
+            spec:
+              group: second.example.com
+              version: v1beta1
+              scope: Cluster
+              names:
+                plural: secondcrds
+                singular: secondcrd
+                kind: SecondCrd
+    asserts:
+      - hasDocuments:
+          count: 2

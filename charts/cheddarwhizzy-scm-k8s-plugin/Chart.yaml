@@ -1,0 +1,13 @@
+apiVersion: v2
+name: cheddarwhizzy-scm-k8s-plugin
+description: ArgoCD ApplicationSet plugin generator for SCM-based Kubernetes chart discovery
+type: application
+version: 0.2.0
+appVersion: "0.2.0"
+
+dependencies:
+  - name: helm-base
+    version: "0.1.*"
+    repository: "https://cheddarwhizzy.github.io/helm-charts"
+    alias: plugin
+

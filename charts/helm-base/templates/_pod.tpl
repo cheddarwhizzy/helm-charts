@@ -37,7 +37,9 @@
 
 {{- if .Values.initContainers }}
       initContainers:
-{{- range $k, $c := .Values.initContainers }}
+{{- $init := .Values.initContainers }}
+{{- if eq (kindOf $init) "map" }}
+{{- range $name, $c := $init }}
 {{- $new := dict }}
 {{- range $k, $v := $ }}
 {{- $_ := set $new $k $v }}
@@ -45,20 +47,52 @@
 {{- range $k, $v := $c }}
 {{- $_ := set $new $k $v }}
 {{- end }}
+{{- if not (hasKey $new "name") }}
+{{- $_ := set $new "name" $name }}
+{{- end }}
 {{ include "helm-base.containerBase" $new | indent 6 }}
+{{- end }}
+{{- else }}
+{{- range $k, $c := $init }}
+{{- $new := dict }}
+{{- range $rk, $rv := $ }}
+{{- $_ := set $new $rk $rv }}
+{{- end }}
+{{- range $ck, $cv := $c }}
+{{- $_ := set $new $ck $cv }}
+{{- end }}
+{{ include "helm-base.containerBase" $new | indent 6 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
       containers:
-{{- range $k, $c := .Values.containers }}
+{{- $containers := .Values.containers }}
+{{- if eq (kindOf $containers) "map" }}
+{{- range $name, $c := $containers }}
 {{- $new := dict }}
-{{- range $k, $v := $ }}
-{{- $_ := set $new $k $v }}
+{{- range $rk, $rv := $ }}
+{{- $_ := set $new $rk $rv }}
 {{- end }}
-{{- range $k, $v := $c }}
-{{- $_ := set $new $k $v }}
+{{- range $ck, $cv := $c }}
+{{- $_ := set $new $ck $cv }}
+{{- end }}
+{{- if not (hasKey $new "name") }}
+{{- $_ := set $new "name" $name }}
 {{- end }}
 {{ include "helm-base.containerBase" $new | indent 6 }}
+{{- end }}
+{{- else }}
+{{- range $k, $c := $containers }}
+{{- $new := dict }}
+{{- range $rk, $rv := $ }}
+{{- $_ := set $new $rk $rv }}
+{{- end }}
+{{- range $ck, $cv := $c }}
+{{- $_ := set $new $ck $cv }}
+{{- end }}
+{{ include "helm-base.containerBase" $new | indent 6 }}
+{{- end }}
 {{- end }}
 
     {{- with .Values.nodeSelector }}

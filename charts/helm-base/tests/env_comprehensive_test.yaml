@@ -1,0 +1,463 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: env comprehensive test
+templates:
+  - deployment.yaml
+tests:
+  # Map-based grouped env
+  - it: should render map-based grouped env
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            base:
+              LOG_LEVEL: info
+              ENV: production
+            observability:
+              OTEL_ENABLED: "true"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          content:
+            - name: LOG_LEVEL
+              value: info
+      - containsDocument:
+          content:
+            - name: ENV
+              value: production
+      - containsDocument:
+          content:
+            - name: OTEL_ENABLED
+              value: "true"
+
+  # Map-based flat env
+  - it: should render map-based flat env
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            LOG_LEVEL: info
+            ENV: production
+    asserts:
+      - containsDocument:
+          content:
+            - name: LOG_LEVEL
+              value: info
+      - containsDocument:
+          content:
+            - name: ENV
+              value: production
+
+  # Global env merging
+  - it: should merge global env with container env
+    set:
+      global:
+        env:
+          GLOBAL_VAR: global-value
+          base:
+            SHARED_VAR: shared
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            CONTAINER_VAR: container-value
+    asserts:
+      - containsDocument:
+          content:
+            - name: GLOBAL_VAR
+              value: global-value
+      - containsDocument:
+          content:
+            - name: CONTAINER_VAR
+              value: container-value
+      - containsDocument:
+          content:
+            - name: SHARED_VAR
+              value: shared
+
+  # Chart-level env merging
+  - it: should merge chart-level env with container env
+    set:
+      env:
+        CHART_VAR: chart-value
+        base:
+          CHART_SHARED: chart-shared
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            CONTAINER_VAR: container-value
+    asserts:
+      - containsDocument:
+          content:
+            - name: CHART_VAR
+              value: chart-value
+      - containsDocument:
+          content:
+            - name: CONTAINER_VAR
+              value: container-value
+      - containsDocument:
+          content:
+            - name: CHART_SHARED
+              value: chart-shared
+
+  # Global → Chart → Container env merging
+  - it: should merge global, chart, and container env in order
+    set:
+      global:
+        env:
+          GLOBAL_VAR: global-value
+      env:
+        CHART_VAR: chart-value
+        GLOBAL_VAR: chart-override
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            CONTAINER_VAR: container-value
+            CHART_VAR: container-override
+    asserts:
+      - containsDocument:
+          content:
+            - name: GLOBAL_VAR
+      - containsDocument:
+          content:
+            - name: CHART_VAR
+      - containsDocument:
+          content:
+            - name: CONTAINER_VAR
+              value: container-value
+
+  # envFrom - map-based grouped
+  - it: should render map-based grouped envFrom
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          envFrom:
+            base:
+              - configMapRef:
+                  name: base-config
+            secrets:
+              - secretRef:
+                  name: app-secrets
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-base-config
+      - containsDocument:
+          content:
+            - secretRef:
+                name: RELEASE-NAME-helm-base-app-secrets
+
+  # envFrom - flat list
+  - it: should render flat list envFrom
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+    asserts:
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-app-config
+      - containsDocument:
+          content:
+            - secretRef:
+                name: RELEASE-NAME-helm-base-app-secrets
+
+  # envFrom - chart-level map-based
+  - it: should render chart-level map-based envFrom
+    set:
+      envFrom:
+        base:
+          - configMapRef:
+              name: chart-config
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-chart-config
+
+  # envFrom - chart-level flat list
+  - it: should render chart-level flat list envFrom
+    set:
+      envFrom:
+        - configMapRef:
+            name: chart-config
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-chart-config
+
+  # envFrom - merging chart and container
+  - it: should merge chart and container envFrom
+    set:
+      envFrom:
+        - configMapRef:
+            name: chart-config
+      containers:
+        main:
+          image: nginx:latest
+          envFrom:
+            - secretRef:
+                name: container-secrets
+    asserts:
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-chart-config
+      - containsDocument:
+          content:
+            - secretRef:
+                name: RELEASE-NAME-helm-base-container-secrets
+
+  # envFrom - fullname resolution
+  - it: should resolve envFrom configMap name with fullname
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          envFrom:
+            - configMapRef:
+                name: app-config
+    asserts:
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-app-config
+
+  # envFrom - fullname override
+  - it: should use fullname override in envFrom
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          envFrom:
+            - configMapRef:
+                fullname: custom-configmap
+                name: app-config
+    asserts:
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: custom-configmap
+
+  # envRaw - map-based grouped
+  - it: should render map-based grouped envRaw
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          envRaw:
+            base:
+              - name: RAW_VAR1
+                value: raw-value1
+            advanced:
+              - name: RAW_VAR2
+                valueFrom:
+                  fieldRef:
+                    fieldPath: metadata.name
+    asserts:
+      - containsDocument:
+          content:
+            - name: RAW_VAR1
+              value: raw-value1
+      - containsDocument:
+          content:
+            - name: RAW_VAR2
+
+  # envRaw - flat list
+  - it: should render flat list envRaw
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          envRaw:
+            - name: RAW_VAR
+              value: raw-value
+            - name: RAW_FROM_FIELD
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+    asserts:
+      - containsDocument:
+          content:
+            - name: RAW_VAR
+              value: raw-value
+      - containsDocument:
+          content:
+            - name: RAW_FROM_FIELD
+
+  # envRaw - global merging
+  - it: should merge global envRaw with container envRaw
+    set:
+      global:
+        envRaw:
+          - name: GLOBAL_RAW
+            value: global-raw-value
+      containers:
+        main:
+          image: nginx:latest
+          envRaw:
+            - name: CONTAINER_RAW
+              value: container-raw-value
+    asserts:
+      - containsDocument:
+          content:
+            - name: GLOBAL_RAW
+              value: global-raw-value
+      - containsDocument:
+          content:
+            - name: CONTAINER_RAW
+              value: container-raw-value
+
+  # envRaw - chart-level merging
+  - it: should merge chart-level envRaw with container envRaw
+    set:
+      envRaw:
+        - name: CHART_RAW
+          value: chart-raw-value
+      containers:
+        main:
+          image: nginx:latest
+          envRaw:
+            - name: CONTAINER_RAW
+              value: container-raw-value
+    asserts:
+      - containsDocument:
+          content:
+            - name: CHART_RAW
+              value: chart-raw-value
+      - containsDocument:
+          content:
+            - name: CONTAINER_RAW
+              value: container-raw-value
+
+  # POD_NAME and POD_IP always present
+  - it: should always include POD_NAME and POD_IP env vars
+    set:
+      containers:
+        main:
+          image: nginx:latest
+    asserts:
+      - containsDocument:
+          content:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+      - containsDocument:
+          content:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+  # Multiple containers with different env configs
+  - it: should render multiple containers with different env configs
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            base:
+              APP_NAME: main-app
+        sidecar:
+          image: sidecar:latest
+          env:
+            base:
+              APP_NAME: sidecar-app
+            sidecar:
+              SIDECAR_MODE: enabled
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          content:
+            - name: APP_NAME
+              value: main-app
+      - containsDocument:
+          content:
+            - name: APP_NAME
+              value: sidecar-app
+      - containsDocument:
+          content:
+            - name: SIDECAR_MODE
+              value: enabled
+
+  # Complex env merging scenario
+  - it: should handle complex env merging scenario
+    set:
+      global:
+        env:
+          GLOBAL_BASE: global-base
+          base:
+            SHARED: global-shared
+        envRaw:
+          - name: GLOBAL_RAW
+            value: global-raw
+      env:
+        CHART_BASE: chart-base
+        base:
+          SHARED: chart-shared-override
+        envFrom:
+          - configMapRef:
+              name: chart-config
+        envRaw:
+          - name: CHART_RAW
+            value: chart-raw
+      containers:
+        main:
+          image: nginx:latest
+          env:
+            CONTAINER_BASE: container-base
+            base:
+              SHARED: container-shared-override
+          envFrom:
+            - secretRef:
+                name: container-secrets
+          envRaw:
+            - name: CONTAINER_RAW
+              value: container-raw
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          content:
+            - name: GLOBAL_BASE
+              value: global-base
+      - containsDocument:
+          content:
+            - name: CHART_BASE
+              value: chart-base
+      - containsDocument:
+          content:
+            - name: CONTAINER_BASE
+              value: container-base
+      - containsDocument:
+          content:
+            - configMapRef:
+                name: RELEASE-NAME-helm-base-chart-config
+      - containsDocument:
+          content:
+            - secretRef:
+                name: RELEASE-NAME-helm-base-container-secrets
+

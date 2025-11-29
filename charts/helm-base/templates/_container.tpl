@@ -58,44 +58,28 @@
 {{ include "helm-base.containerSecurityContext" $ | indent 2 }}
 {{- end -}} {{/* End privileged */}}
 
-{{- if or $.env $.Values.env $.Values.global.env $.envFrom $.Values.envFrom }}
-{{- $envFromList := list }}
-{{- if $.Values.envFrom }}
-{{- $envFromList = concat $envFromList $.Values.envFrom }}
-{{- end }}
-{{- if $.envFrom }}
-{{- $envFromList = concat $envFromList $.envFrom }}
-{{- end }}
-{{- if $envFromList }}
+{{- if or $.env $.Values.env $.Values.global.env $.envFrom $.Values.envFrom $.envRaw $.Values.envRaw $.Values.global.envRaw }}
+  {{- $envFromYaml := include "helm-base.envFromList" $ }}
+  {{- if $envFromYaml }}
   envFrom:
-{{- range $_, $e := $envFromList }}
-  {{- if $e.configMapRef }}
-  - configMapRef:
-      name: {{if $e.configMapRef.fullname }}{{ $e.configMapRef.fullname }}{{else}}{{ $name }}-{{ $e.configMapRef.name }}{{end}}
-  {{- else if $e.secretRef }}
-  - secretRef:
-      name: {{if $e.secretRef.fullname }}{{ $e.secretRef.fullname }}{{else}}{{ $name }}-{{ $e.secretRef.name }}{{end}}
+{{ $envFromYaml | indent 2 }}
   {{- end }}
-{{- end }}
-{{- end }}
-{{- $envVars := deepCopy ($.Values.env | default dict) | mergeOverwrite (deepCopy ($.Values.global.env | default dict)) }}
+
   env:
-{{- if $envVars }}
-{{- range $dk, $dv := $envVars }}
+  {{- $envMapYaml := include "helm-base.envVars" $ }}
+  {{- if $envMapYaml }}
+  {{- $envMap := fromYaml $envMapYaml }}
+  {{- range $dk, $dv := $envMap }}
   - name: {{ $dk }}
     value: "{{ with $dv }}{{ tpl (. | toString) $ }}{{end}}"
-{{- end }}
-{{- end }}
-{{- if $.env }}
-{{- range $k, $v := $.env }}
-  - name: {{ $k }}
-    value: "{{ with $v }}{{ tpl (. | toString) $ }}{{end}}"
-{{- end }}
-{{- end }}
-{{- if or $.envRaw $.Values.envRaw $.Values.global.envRaw -}}
-{{- $rawEnv := concat ($.envRaw | default list) ($.Values.envRaw | default list) ($.Values.global.envRaw | default list) }}
-{{ toYaml $rawEnv | indent 2}}
-{{- end }}
+  {{- end }}
+  {{- end }}
+
+  {{- $rawYaml := include "helm-base.envRawList" $ }}
+  {{- if $rawYaml }}
+{{ $rawYaml | indent 2 }}
+  {{- end }}
+
   - name: POD_NAME
     valueFrom:
       fieldRef:

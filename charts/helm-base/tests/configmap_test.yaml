@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: configmap test
+templates:
+  - configmap.yaml
+tests:
+  - it: should not render configmap with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render configmap with basic config
+    set:
+      configMaps:
+        - name: app-config
+          data:
+            app.json: |
+              {"apiUrl":"https://my.domain.com"}
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-app-config
+      - equal:
+          path: data.app.json
+          value: |
+            {"apiUrl":"https://my.domain.com"}
+
+  - it: should render configmap with string data
+    set:
+      configMaps:
+        - name: string-config
+          data: |
+            key1=value1
+            key2=value2
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-string-config
+
+  - it: should render configmap with binary data
+    set:
+      configMaps:
+        - name: binary-config
+          binaryData:
+            binary.bin: YmluYXJ5IGRhdGE= # base64 encoded "binary data"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-binary-config
+      - equal:
+          path: binaryData.binary.bin
+          value: YmluYXJ5IGRhdGE=
+
+  - it: should render configmap with global configmaps
+    set:
+      global:
+        configMaps:
+          - name: global-config
+            data:
+              global.json: |
+                {"global":true}
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-global-config
+
+  - it: should render multiple configmaps
+    set:
+      configMaps:
+        - name: first-config
+          data:
+            key1: value1
+        - name: second-config
+          data:
+            key2: value2
+    asserts:
+      - hasDocuments:
+          count: 2

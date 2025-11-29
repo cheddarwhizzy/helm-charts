@@ -48,3 +48,217 @@ tests:
           path: spec.template.spec.containers[0].image
           value: myapp:v1.0.0
 
+  - it: should render deployment with map-based containers
+    set:
+      containers:
+        main:
+          image: nginx:1.21
+          ports:
+            http: 80
+          env:
+            base:
+              ENV: production
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: nginx:1.21
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: p-http
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: ENV
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: production
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 64Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 250m
+
+  - it: should render deployment with legacy list-based containers
+    set:
+      containers:
+        - name: legacy-app
+          image: nginx:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo hello
+              ./run_me.sh
+          ports:
+            - containerPort: 8080
+              name: http
+          envRaw:
+            - name: ENV_VAR
+              value: "legacy"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "500m"
+            limits:
+              memory: "256Mi"
+              cpu: "1000m"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: legacy-app
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: nginx:latest
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: sh
+      - equal:
+          path: spec.template.spec.containers[0].command[1]
+          value: -c
+      - equal:
+          path: spec.template.spec.containers[0].env[2].name
+          value: ENV_VAR
+      - equal:
+          path: spec.template.spec.containers[0].env[2].value
+          value: legacy
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+
+  - it: should render deployment with map-based init containers
+    set:
+      initContainers:
+        migrator:
+          image: migrate:latest
+          env:
+            base:
+              DB_HOST: postgres
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "100m"
+      containers:
+        main:
+          image: app:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: migrator
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: migrate:latest
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].name
+          value: DB_HOST
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].value
+          value: postgres
+      - equal:
+          path: spec.template.spec.initContainers[0].resources.requests.memory
+          value: 32Mi
+
+  - it: should render deployment with legacy list-based init containers
+    set:
+      initContainers:
+        - name: legacy-migrator
+          image: migrate:latest
+          command:
+            - /bin/sh
+            - -c
+            - echo "Running migration"
+          envRaw:
+            - name: DB_HOST
+              value: postgres
+      containers:
+        - name: app
+          image: app:latest
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: legacy-migrator
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: migrate:latest
+      - equal:
+          path: spec.template.spec.initContainers[0].command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.initContainers[0].env[2].name
+          value: DB_HOST
+      - equal:
+          path: spec.template.spec.initContainers[0].env[2].value
+          value: postgres
+
+  - it: should render deployment with both map-based containers and init containers
+    set:
+      initContainers:
+        setup:
+          image: setup:latest
+          env:
+            base:
+              MODE: setup
+        migrator:
+          image: migrate:latest
+          env:
+            base:
+              MODE: migrate
+      containers:
+        main:
+          image: app:latest
+          env:
+            base:
+              ENV: production
+        sidecar:
+          image: sidecar:latest
+          env:
+            base:
+              ENV: sidecar
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers
+          count: 2
+      - equal:
+          path: spec.template.spec.containers
+          count: 2
+      - containsDocument:
+          content: setup
+      - containsDocument:
+          content: migrator
+      - containsDocument:
+          content: main
+      - containsDocument:
+          content: sidecar
+

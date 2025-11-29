@@ -1,0 +1,6 @@
+dependencies:
+- name: helm-base
+  repository: https://cheddarwhizzy.github.io/helm-charts
+  version: 0.1.40
+digest: sha256:27341f82c429e2d55595d87973cc2c4ff1f446b46bdfc3d73ca7a517b3c30929
+generated: "2025-11-17T00:32:25.810213-08:00"

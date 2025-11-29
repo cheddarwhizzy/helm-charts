@@ -69,12 +69,34 @@ spec:
     {{- toYaml .Values.cnpg.cluster.tolerations | nindent 4 }}
   {{- end }}
   
+  {{- if .Values.cnpg.cluster.env }}
+  env:
+    {{- toYaml .Values.cnpg.cluster.env | nindent 4 }}
+  {{- end }}
+  
   {{- if and .Values.cnpg.backup.enabled .Values.cnpg.backup.s3.enabled }}
   backup:
     barmanObjectStore:
       destinationPath: s3://{{ .Values.cnpg.backup.s3.bucket }}{{ .Values.cnpg.backup.s3.path }}
+      {{- if .Values.cnpg.backup.s3.endpoint }}
+      endpointURL: {{ .Values.cnpg.backup.s3.endpoint }}
+      {{- end }}
+      {{- if .Values.cnpg.backup.s3.endpointCA }}
+      endpointCA:
+        name: {{ .Values.cnpg.backup.s3.endpointCA.secretName }}
+        key: {{ .Values.cnpg.backup.s3.endpointCA.secretKey | default "ca.crt" }}
+      {{- end }}
       s3Credentials:
+        {{- if .Values.cnpg.backup.s3.credentials }}
+        accessKeyId:
+          name: {{ .Values.cnpg.backup.s3.credentials.secretName }}
+          key: {{ .Values.cnpg.backup.s3.credentials.accessKeyIDKey | default "accesskey" }}
+        secretAccessKey:
+          name: {{ .Values.cnpg.backup.s3.credentials.secretName }}
+          key: {{ .Values.cnpg.backup.s3.credentials.secretAccessKeyKey | default "secretkey" }}
+        {{- else }}
         inheritFromIAMRole: true
+        {{- end }}
       {{- if .Values.cnpg.backup.wal.enabled }}
       wal:
         compression: {{ .Values.cnpg.backup.wal.compression | default "gzip" }}

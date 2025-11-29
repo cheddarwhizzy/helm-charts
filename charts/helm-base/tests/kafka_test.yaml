@@ -1,0 +1,109 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: kafka test
+templates:
+  - kafka-cluster.yaml
+  - kafka-nodepool.yaml
+  - kafka-topic.yaml
+  - kafka-connect.yaml
+tests:
+  - it: should not render kafka resources with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render kafka cluster with basic config
+    set:
+      kafka:
+        enabled: true
+        cluster:
+          name: my-kafka
+          version: 3.6.0
+          replicas: 3
+          storage:
+            type: persistent-claim
+            size: 10Gi
+            class: standard
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Kafka
+      - equal:
+          path: metadata.name
+          value: my-kafka
+      - equal:
+          path: spec.kafka.version
+          value: 3.6.0
+      - equal:
+          path: spec.kafka.replicas
+          value: 3
+
+  - it: should render kafka nodepool with custom config
+    set:
+      kafka:
+        enabled: true
+        nodePool:
+          name: kafka-pool
+          replicas: 2
+          storage:
+            type: persistent-claim
+            size: 20Gi
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: KafkaNodePool
+      - equal:
+          path: metadata.name
+          value: kafka-pool
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: should render kafka topic with basic config
+    set:
+      kafka:
+        enabled: true
+        topic:
+          name: my-topic
+          partitions: 3
+          replicas: 2
+          config:
+            retention.ms: "604800000"
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: KafkaTopic
+      - equal:
+          path: metadata.name
+          value: my-topic
+      - equal:
+          path: spec.partitions
+          value: 3
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.config.retention\.ms
+          value: "604800000"
+
+  - it: should render kafka connect with basic config
+    set:
+      kafka:
+        enabled: true
+        connect:
+          name: my-connect
+          replicas: 2
+          bootstrapServers: kafka:9092
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: KafkaConnect
+      - equal:
+          path: metadata.name
+          value: my-connect
+      - equal:
+          path: spec.replicas
+          value: 2

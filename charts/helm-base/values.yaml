@@ -63,7 +63,7 @@ ttlSecondsAfterFinished: 0 # TTL for finished jobs
 
 # Volumes for deployments. Must also specify in initContainers/containers below
 volumes: []
-# Example volume configurations:
+# Example legacy list-based volume configurations (still supported):
 # - name: some-volume
 #   hostPath: 
 #     path: /path/to/mount
@@ -131,6 +131,15 @@ volumes: []
 #         resources:
 #           requests:
 #             storage: 1Gi
+#
+# Preferred map-based volumes schema (recommended for deep merging):
+# volumes:
+#   data:
+#     persistentVolumeClaim:
+#       claimName: data-pvc
+#   config:
+#     configMap:
+#       name: app-config
 
 # Volume claim templates for StatefulSets
 volumeClaimTemplates: []
@@ -196,16 +205,29 @@ imagePullSecrets: []
 # - name: some-image-pull-secret
 
 # Environment variables from ConfigMaps or Secrets
-envFrom: {} # mount in additional configMap env vars
-# Example envFrom:
+envFrom: {} # mount in additional ConfigMap/Secret env vars (supports flat list or grouped map-of-lists)
+# Preferred grouped envFrom schema (recommended for deep merging):
+# envFrom:
+#   base:
+#     - configMapRef:
+#         name: special-config # or fullname: other-service-configmap
+#   secrets:
+#     - secretRef:
+#         name: secret-config # or fullname: other-service-secrets
+# Legacy flat list schema (still supported):
 # - configMapRef:
-#     name: special-config # or fullname: other-service-configmap
+#     name: special-config
 # - secretRef:
-#     name: secret-config # or fullname: other-service-secrets
+#     name: secret-config
 
-# Environment variables
+# Environment variables (supports grouped maps for deep merging)
 env: {}
-  # BRANCH: integration
+  # Preferred grouped env schema (recommended):
+  # env:
+  #   base:
+  #     BRANCH: integration
+  #   observability:
+  #     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
 
 # Pod affinity configuration
 # affinity: |
@@ -308,6 +330,8 @@ securityContext:
     # seLinuxOptions: {} # SELinux options
     # windowsOptions: {} # Windows-specific options
     # procMount: Default # Proc mount type
+  # You can also set global.securityContext.{podSecurityContext,containerSecurityContext}
+  # to apply security defaults across multiple aliased subcharts.
 
 # Progress deadline for deployment (seconds)
 progressDeadlineSeconds: 180
@@ -324,9 +348,82 @@ strategy:
 
 # Init containers configuration
 initContainers: []
+# Preferred map-based initContainers schema (recommended):
+# initContainers:
+#   migrator:
+#     image: registry.domain.com/migrator:tag
+#     env: {}
+#     resources: {}
+#     volumeMounts: {}
 # Main containers configuration
 containers: []
-# Example container:
+# Preferred map-based containers schema (recommended):
+# containers:
+#   main:
+#     image: registry.domain.com/image:tag
+#     command:
+#     - sh
+#     - -c
+#     - |
+#       echo hello
+#       ./run_me.sh
+#     volumeMounts:
+#       src:
+#         mountPath: /app
+#       some-configmap:
+#         mountPath: /etc/myapp
+#     ports:
+#     - containerPort: 8080
+#       name: http
+#     env:
+#       base:
+#         ENV_VAR: "value"
+#     resources:
+#       requests:
+#         memory: "64Mi"
+#         cpu: "250m"
+#       limits:
+#         memory: "128Mi"
+#         cpu: "500m"
+#     waitFor:
+#       port: 8080
+#       initialDelaySeconds: 10
+#     startupProbe:
+#       httpGet:
+#         path: /health
+#         port: 8080
+#       initialDelaySeconds: 10
+#       periodSeconds: 5
+#       timeoutSeconds: 5
+#       failureThreshold: 30
+#       successThreshold: 1
+#     livenessProbe:
+#       httpGet:
+#         path: /health
+#         port: 8080
+#         httpHeaders:
+#           - name: Custom-Header
+#             value: "value"
+#       initialDelaySeconds: 30
+#       periodSeconds: 10
+#       timeoutSeconds: 5
+#       failureThreshold: 3
+#       successThreshold: 1
+#     readinessProbe:
+#       httpGet:
+#         path: /ready
+#         port: 8080
+#         httpHeaders:
+#           - name: Custom-Header
+#             value: "value"
+#       initialDelaySeconds: 5
+#       periodSeconds: 5
+#       timeoutSeconds: 5
+#       failureThreshold: 3
+#       successThreshold: 1
+#
+# Legacy list-based containers schema (still supported):
+# containers:
 # - name: some-thing
 #   image: registry.domain.com/image:tag
 #   command:
@@ -353,42 +450,6 @@ containers: []
 #     limits:
 #       memory: "128Mi"
 #       cpu: "500m"
-#   waitFor:
-#     port: 8080
-#     initialDelaySeconds: 10
-#   startupProbe:
-#     httpGet:
-#       path: /health
-#       port: 8080
-#     initialDelaySeconds: 10
-#     periodSeconds: 5
-#     timeoutSeconds: 5
-#     failureThreshold: 30
-#     successThreshold: 1
-#   livenessProbe:
-#     httpGet:
-#       path: /health
-#       port: 8080
-#       httpHeaders:
-#         - name: Custom-Header
-#           value: "value"
-#     initialDelaySeconds: 30
-#     periodSeconds: 10
-#     timeoutSeconds: 5
-#     failureThreshold: 3
-#     successThreshold: 1
-#   readinessProbe:
-#     httpGet:
-#       path: /ready
-#       port: 8080
-#       httpHeaders:
-#         - name: Custom-Header
-#           value: "value"
-#     initialDelaySeconds: 5
-#     periodSeconds: 5
-#     timeoutSeconds: 5
-#     failureThreshold: 3
-#     successThreshold: 1
 
 
 # Role based access control. Requires a serviceaccount
@@ -435,7 +496,7 @@ podDisruptionBudget:
 
 # Network Policy configuration
 networkPolicy:
-  enabled: false # Enable network policy (note: template uses 'enable' not 'enabled')
+  enabled: false # Enable network policy (template also accepts legacy 'enable' flag)
   policy: | # Network policy specification
     podSelector: {}
     policyTypes:
@@ -515,6 +576,65 @@ virtualservice:
     #   aliases: [] # Additional host aliases for this route
     #   annotations: {} # Route-specific annotations
   aliases: [] # Additional host aliases
+
+
+# Gateway API configuration
+gatewayApi:
+  enabled: false # Enable Gateway API resources
+  apiVersion: gateway.networking.k8s.io/v1 # API version for Gateway/HTTPRoute
+  gatewayClassName: "" # Default GatewayClass name
+  port: 80 # Default listener/backend port
+  gatewayAnnotations: {} # Global annotations applied to every Gateway
+  httpRouteAnnotations: {} # Global annotations applied to every HTTPRoute
+  gateways: [] # Gateway definitions
+    # Example Gateway:
+    # - name: public
+    #   gatewayClassName: istio
+    #   namespace: istio-gateway
+    #   labels: {}
+    #   annotations: {}
+    #   addresses:
+    #     - type: Hostname
+    #       value: public-gateway.example.com
+    #   listeners:
+    #     - name: http
+    #       protocol: HTTP
+    #       port: 80
+    #       hostname: "app.example.com"
+    #       allowedRoutes:
+    #         namespaces:
+    #           from: Same
+    #         kinds:
+    #           - kind: HTTPRoute
+    #             group: gateway.networking.k8s.io
+    #       tls:
+    #         mode: Terminate
+    #         certificateRefs:
+    #           - name: app-cert
+    #             kind: Secret
+  httpRoutes: [] # HTTPRoute definitions
+    # Example HTTPRoute:
+    # - name: default
+    #   hostnames:
+    #     - app.example.com
+    #   parentRefs:
+    #     - name: public
+    #       namespace: istio-gateway
+    #       sectionName: http
+    #   rules:
+    #     - matches:
+    #         - path:
+    #             type: PathPrefix
+    #             value: /
+    #       filters:
+    #         - type: RequestHeaderModifier
+    #           requestHeaderModifier:
+    #             add:
+    #               x-env: prod
+    #       backendRefs:
+    #         - service: web # Uses <fullname>-web service
+    #           port: 3000
+    #           weight: 1
 
 # Optional Telemetry configuration for Istio access logs
 telemetry:

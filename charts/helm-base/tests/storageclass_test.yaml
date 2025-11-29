@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: storageclass test
+templates:
+  - storageclass.yaml
+tests:
+  - it: should not render storageclass with default values
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render storageclass with basic config
+    set:
+      storageclass:
+        create: true
+        name: fast-ssd
+        provisioner: ebs.csi.aws.com
+        isDefault: false
+        parameters:
+          type: gp3
+          encrypted: "true"
+        reclaimPolicy: Delete
+        volumeBindingMode: WaitForFirstConsumer
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StorageClass
+      - equal:
+          path: metadata.name
+          value: fast-ssd
+      - equal:
+          path: provisioner
+          value: ebs.csi.aws.com
+      - equal:
+          path: parameters.type
+          value: gp3
+      - equal:
+          path: parameters.encrypted
+          value: "true"
+      - equal:
+          path: reclaimPolicy
+          value: Delete
+      - equal:
+          path: volumeBindingMode
+          value: WaitForFirstConsumer
+
+  - it: should render storageclass as default
+    set:
+      storageclass:
+        create: true
+        name: default-storage
+        provisioner: kubernetes.io/aws-ebs
+        isDefault: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: StorageClass
+      - equal:
+          path: metadata.name
+          value: default-storage
+      - equal:
+          path: metadata.annotations.storageclass\.kubernetes\.io/is-default-class
+          value: "\"true\""

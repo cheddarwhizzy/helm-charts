@@ -1,0 +1,16 @@
+# Production environment values
+# Uses ghcr.io for image registry
+
+plugin:
+  image:
+    repository: ghcr.io/cheddarwhizzy/argocd-scm-k8s-plugin
+    tag: "0.2.0"
+    pullPolicy: IfNotPresent
+  
+  # Image pull secrets for GHCR (required if repository is private)
+  # Create secret with: kubectl create secret docker-registry ghcr-image-pull-secret \
+  #   --docker-server=ghcr.io --docker-username=cheddarwhizzy \
+  #   --docker-password=<GITHUB_TOKEN> --namespace=argocd
+  imagePullSecrets:
+  - ghcr-image-pull-secret
+

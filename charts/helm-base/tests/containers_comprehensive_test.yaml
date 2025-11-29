@@ -1,0 +1,558 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/helm-unittest/helm-unittest/main/schema/helm-testsuite.json
+suite: containers comprehensive test
+templates:
+  - deployment.yaml
+tests:
+  # Map-based containers - Command & Args
+  - it: should render map-based container with command and args
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          command:
+            - /bin/sh
+            - -c
+            - echo hello
+          args:
+            - --verbose
+            - --debug
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.containers[0].command[1]
+          value: -c
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: --verbose
+      - equal:
+          path: spec.template.spec.containers[0].args[1]
+          value: --debug
+
+  # List-based containers - Command & Args
+  - it: should render list-based container with command and args
+    set:
+      containers:
+        - name: app
+          image: nginx:latest
+          command:
+            - /bin/sh
+            - -c
+            - echo hello
+          args:
+            - --verbose
+            - --debug
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: app
+      - equal:
+          path: spec.template.spec.containers[0].command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: --verbose
+
+  # Working Directory
+  - it: should render container with workingDir
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          workingDir: /app
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].workingDir
+          value: /app
+
+  # TTY & STDIN
+  - it: should render container with tty and stdin
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          tty: true
+          stdin: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].tty
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].stdin
+          value: true
+
+  # Map-based ports
+  - it: should render map-based ports
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http: 80
+            https: 443
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: p-http
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].name
+          value: p-https
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].containerPort
+          value: 443
+
+  # List-based ports
+  - it: should render list-based ports
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              name: http
+              protocol: TCP
+            - containerPort: 443
+              name: https
+              protocol: UDP
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].protocol
+          value: TCP
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].protocol
+          value: UDP
+
+  # Map-based ports with protocol
+  - it: should render map-based ports with protocol
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          ports:
+            http:
+              port: 80
+              protocol: TCP
+            https:
+              port: 443
+              protocol: UDP
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].protocol
+          value: TCP
+
+  # Map-based volumeMounts
+  - it: should render map-based volumeMounts
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+        config:
+          configMap:
+            name: app-config
+      containers:
+        main:
+          image: nginx:latest
+          volumeMounts:
+            data:
+              mountPath: /data
+            config:
+              mountPath: /etc/config
+              readOnly: true
+              subPath: config.json
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: data
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /data
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].name
+          value: config
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].readOnly
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].subPath
+          value: config.json
+
+  # List-based volumeMounts
+  - it: should render list-based volumeMounts
+    set:
+      volumes:
+        - name: data
+          emptyDir: {}
+      containers:
+        main:
+          image: nginx:latest
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              subPath: app
+              readOnly: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: data
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
+          value: /data
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].subPath
+          value: app
+
+  # Resources
+  - it: should render container with resources
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 250m
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 256Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: 500m
+
+  # Privileged security context
+  - it: should render container with privileged security context
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          privileged: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.privileged
+          value: true
+
+  # Custom security context
+  - it: should render container with custom security context
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+              add:
+                - NET_BIND_SERVICE
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+
+  # waitFor with port (TCP probe)
+  - it: should render waitFor with port generating TCP probes
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          waitFor:
+            port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: 8080
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.tcpSocket.port
+          value: 8080
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 5
+
+  # waitFor with command (exec probe)
+  - it: should render waitFor with command generating exec probes
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          waitFor:
+            command:
+              - /bin/sh
+              - -c
+              - test -f /ready
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 2
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.exec.command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.exec.command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.timeoutSeconds
+          value: 2
+
+  # startupProbe
+  - it: should render container with startupProbe
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+            successThreshold: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.port
+          value: 8080
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 30
+
+  # livenessProbe
+  - it: should render container with livenessProbe
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+              httpHeaders:
+                - name: Custom-Header
+                  value: value
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders[0].name
+          value: Custom-Header
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.initialDelaySeconds
+          value: 30
+
+  # readinessProbe
+  - it: should render container with readinessProbe
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - test -f /ready
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.exec.command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 5
+
+  # Lifecycle hooks
+  - it: should render container with lifecycle hooks
+    set:
+      containers:
+        main:
+          image: nginx:latest
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
+            postStart:
+              httpGet:
+                path: /started
+                port: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.exec.command[0]
+          value: /bin/sh
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.postStart.httpGet.path
+          value: /started
+
+  # All features combined - map-based
+  - it: should render map-based container with all features
+    set:
+      volumes:
+        data:
+          emptyDir: {}
+      containers:
+        main:
+          image: nginx:1.21
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo hello
+          workingDir: /app
+          tty: true
+          stdin: true
+          ports:
+            http: 80
+          volumeMounts:
+            data:
+              mountPath: /data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+          securityContext:
+            runAsUser: 1000
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 80
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 5
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: main
+      - equal:
+          path: spec.template.spec.containers[0].workingDir
+          value: /app
+      - equal:
+          path: spec.template.spec.containers[0].tty
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 80
+
+  # All features combined - list-based
+  - it: should render list-based container with all features
+    set:
+      volumes:
+        - name: data
+          emptyDir: {}
+      containers:
+        - name: app
+          image: nginx:1.21
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - echo hello
+          workingDir: /app
+          tty: true
+          stdin: true
+          ports:
+            - containerPort: 80
+              name: http
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "250m"
+          securityContext:
+            runAsUser: 1000
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 80
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 5
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: app
+      - equal:
+          path: spec.template.spec.containers[0].workingDir
+          value: /app
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: http
+

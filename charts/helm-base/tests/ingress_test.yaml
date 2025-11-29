@@ -56,3 +56,40 @@ tests:
       - equal:
           path: spec.rules[0].host
           value: custom.test.com
+
+  - it: should render tls ingress with annotations
+    set:
+      ingress:
+        enabled: true
+        port: 8080
+        tls: true
+        secretName: qa-cert
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-staging
+        routes:
+          - name: qa
+            host: whizai-test.qa.cheddarwhizzy.com
+            path: /
+            pathType: Prefix
+            service: default
+      services:
+        - name: default
+          type: ClusterIP
+          ports:
+            - name: http
+              port: 8080
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: spec.tls[0].secretName
+          value: qa-cert
+      - equal:
+          path: spec.tls[0].hosts[0]
+          value: whizai-test.qa.cheddarwhizzy.com
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.port.number
+          value: 8080
+      - equal:
+          path: metadata.annotations["cert-manager.io/cluster-issuer"]
+          value: letsencrypt-staging

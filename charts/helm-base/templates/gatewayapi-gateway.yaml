@@ -3,7 +3,65 @@
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $apiVersion := default "gateway.networking.k8s.io/v1" .Values.gatewayApi.apiVersion }}
 {{- $globalAnnotations := default (dict) .Values.gatewayApi.gatewayAnnotations }}
-{{- range $gateway := .Values.gatewayApi.gateways }}
+{{- $gateways := .Values.gatewayApi.gateways }}
+{{- if eq (kindOf $gateways) "map" }}
+{{- range $gatewayName, $gateway := $gateways }}
+{{- $newGateway := deepCopy $gateway }}
+{{- if not (hasKey $newGateway "name") }}
+{{- $_ := set $newGateway "name" $gatewayName }}
+{{- end }}
+{{- $resourceName := printf "%s-%s" (include "helm-base.fullname" $root) (tpl $newGateway.name $root) }}
+{{- if $newGateway.fullname }}
+  {{- $resourceName = tpl $newGateway.fullname $root }}
+{{- end }}
+{{- $annotations := mergeOverwrite (deepCopy $globalAnnotations) (default (dict) $newGateway.annotations) }}
+---
+apiVersion: {{ default $apiVersion $newGateway.apiVersion }}
+kind: Gateway
+metadata:
+  name: {{ $resourceName }}
+  {{- if $newGateway.namespace }}
+  namespace: {{ tpl $newGateway.namespace $root }}
+  {{- end }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  {{- if $newGateway.labels }}
+{{ toYaml $newGateway.labels | nindent 4 }}
+  {{- end }}
+  {{- if $annotations }}
+  annotations:
+  {{- range $key, $value := $annotations }}
+    {{ $key }}: {{ (tpl $value $root) | quote }}
+  {{- end }}
+  {{- end }}
+spec:
+  gatewayClassName: {{ tpl (default $.Values.gatewayApi.gatewayClassName $newGateway.gatewayClassName) $root }}
+  {{- if $newGateway.addresses }}
+  addresses:
+{{ tpl (toYaml $newGateway.addresses) $root | indent 4 }}
+  {{- end }}
+  {{- if $newGateway.listeners }}
+  listeners:
+    {{- range $listener := $newGateway.listeners }}
+    - name: {{ tpl (default "http" $listener.name) $root }}
+      protocol: {{ default "HTTP" $listener.protocol }}
+      port: {{ default $.Values.gatewayApi.port $listener.port }}
+      {{- if $listener.hostname }}
+      hostname: {{ tpl $listener.hostname $root | quote }}
+      {{- end }}
+      {{- if $listener.allowedRoutes }}
+      allowedRoutes:
+{{ tpl (toYaml $listener.allowedRoutes) $root | indent 8 }}
+      {{- end }}
+      {{- if $listener.tls }}
+      tls:
+{{ tpl (toYaml $listener.tls) $root | indent 8 }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- else }}
+{{- range $gateway := $gateways }}
 {{- $resourceName := printf "%s-%s" (include "helm-base.fullname" $root) (tpl $gateway.name $root) }}
 {{- if $gateway.fullname }}
   {{- $resourceName = tpl $gateway.fullname $root }}
@@ -53,5 +111,6 @@ spec:
       {{- end }}
     {{- end }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

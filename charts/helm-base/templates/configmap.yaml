@@ -8,8 +8,35 @@
     {{- end }}
 {{ end }}
 
+{{- $configMapsList := list }}
+{{- $chartConfigMaps := default (list) .Values.configMaps }}
+{{- $globalConfigMaps := default (list) .Values.global.configMaps }}
 
-{{- range $c := (concat .Values.configMaps .Values.global.configMaps) }}
+{{- if eq (kindOf $chartConfigMaps) "map" }}
+  {{- range $configMapName, $c := $chartConfigMaps }}
+    {{- $newConfigMap := deepCopy $c }}
+    {{- if not (hasKey $newConfigMap "name") }}
+      {{- $_ := set $newConfigMap "name" $configMapName }}
+    {{- end }}
+    {{- $configMapsList = append $configMapsList $newConfigMap }}
+  {{- end }}
+{{- else }}
+  {{- $configMapsList = concat $configMapsList $chartConfigMaps }}
+{{- end }}
+
+{{- if eq (kindOf $globalConfigMaps) "map" }}
+  {{- range $configMapName, $c := $globalConfigMaps }}
+    {{- $newConfigMap := deepCopy $c }}
+    {{- if not (hasKey $newConfigMap "name") }}
+      {{- $_ := set $newConfigMap "name" $configMapName }}
+    {{- end }}
+    {{- $configMapsList = append $configMapsList $newConfigMap }}
+  {{- end }}
+{{- else }}
+  {{- $configMapsList = concat $configMapsList $globalConfigMaps }}
+{{- end }}
+
+{{- range $c := $configMapsList }}
 ---
 apiVersion: v1
 kind: ConfigMap

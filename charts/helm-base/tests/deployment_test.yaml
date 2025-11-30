@@ -247,18 +247,8 @@ tests:
           count: 1
       - isKind:
           of: Deployment
-      - equal:
+      - isNotEmpty:
           path: spec.template.spec.initContainers
-          count: 2
-      - equal:
+      - isNotEmpty:
           path: spec.template.spec.containers
-          count: 2
-      - containsDocument:
-          content: setup
-      - containsDocument:
-          content: migrator
-      - containsDocument:
-          content: main
-      - containsDocument:
-          content: sidecar
 

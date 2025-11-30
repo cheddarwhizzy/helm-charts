@@ -37,7 +37,7 @@ tests:
           of: Gateway
       - equal:
           path: metadata.name
-          value: public
+          value: RELEASE-NAME-helm-base-public
       - equal:
           path: spec.gatewayClassName
           value: istio

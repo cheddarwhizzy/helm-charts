@@ -11,6 +11,7 @@ tests:
   - it: should render servicemonitor with basic config
     set:
       monitoring:
+        forceRender: true
         slack_channel: "#alerts"
     asserts:
       - hasDocuments:

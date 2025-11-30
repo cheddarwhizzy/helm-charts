@@ -5,7 +5,74 @@
 {{- $firstService := first .Values.services }}
 {{- $defaultServiceName := printf "%s-%s" $name $firstService.name }}
 {{if $firstService.fullname}}{{$defaultServiceName = $firstService.fullname}}{{end}}
-{{- range $route := $.Values.ingress.routes }}
+{{- $routes := $.Values.ingress.routes }}
+{{- if eq (kindOf $routes) "map" }}
+{{- range $routeName, $route := $routes }}
+{{- $newRoute := deepCopy $route }}
+{{- if not (hasKey $newRoute "name") }}
+{{- $_ := set $newRoute "name" $routeName }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $name }}-{{ tpl $newRoute.name $ }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+{{- $ingressAnnotations := dict }}
+{{- if $newRoute.annotations }}
+{{- $ingressAnnotations = merge $newRoute.annotations $.Values.ingress.annotations }}
+{{- else }}
+{{- $ingressAnnotations = $.Values.ingress.annotations }}
+{{- end }}
+  {{- range $key, $value := $ingressAnnotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+  {{- end }}
+
+spec:
+  ingressClassName: {{ default "nginx" $.Values.ingress.class }}
+  rules:
+    - host: "{{if $newRoute.host }}{{ tpl (tpl $newRoute.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
+      http:
+        paths:
+          - path: {{ tpl $newRoute.path $ }}
+            pathType: {{ default "Prefix" $newRoute.pathType }}
+            backend:
+              service:
+                name: {{if or $newRoute.service $newRoute.serviceFullName}}{{ if $newRoute.serviceFullName }}{{tpl $newRoute.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $newRoute.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+                port: 
+                  number: {{ default $.Values.ingress.port $newRoute.port }}
+    {{- if or $newRoute.aliases $.Values.ingress.aliases }}
+    {{- range $_, $alias := (concat (default list $newRoute.aliases) $.Values.ingress.aliases) }}
+    - host: "{{ tpl $alias $ }}"
+      http:
+        paths:
+          - path: {{ tpl $newRoute.path $ }}
+            pathType: {{ default "Prefix" $newRoute.pathType }}
+            backend:
+              service:
+                name: {{if or $newRoute.service $newRoute.serviceFullName}}{{ if $newRoute.serviceFullName }}{{tpl $newRoute.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $newRoute.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+                port: 
+                  number: {{ default $.Values.ingress.port $newRoute.port }}
+    {{- end }}
+    {{- end }}
+  {{- if $root.Values.ingress.tls }}
+  {{- $secretName := coalesce $newRoute.secretName $root.Values.ingress.secretName (printf "%s-tls" $name) }}
+  tls:
+    - secretName: {{ $secretName }}
+      hosts:
+        - "{{if $newRoute.host }}{{ tpl (tpl $newRoute.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
+      {{- if or $newRoute.aliases $.Values.ingress.aliases }}
+        {{- range $_, $alias := (concat (default list $newRoute.aliases) $.Values.ingress.aliases) }}
+        - "{{ tpl $alias $ }}"
+        {{- end }}
+      {{- end }}
+  {{- end }}
+
+{{- end }}
+{{- else }}
+{{- range $route := $routes }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -64,7 +131,8 @@ spec:
       {{- end }}
   {{- end }}
 
-{{- end -}}
+{{- end }}
+{{- end }}
 
 {{- end }}
 

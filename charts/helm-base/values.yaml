@@ -33,7 +33,23 @@ kind: Deployment
 
 # Services configuration - supports multiple services
 services: []
-# Example service configuration:
+# Preferred map-based services schema (recommended for deep merging):
+# services:
+#   web:
+#     type: ClusterIP # ClusterIP, NodePort, LoadBalancer, or ExternalName
+#     ports:
+#     - name: http
+#       port: 8080
+#       targetPort: 8080
+#       protocol: TCP
+#   api:
+#     type: LoadBalancer
+#     ports:
+#     - name: api
+#       port: 8080
+#       targetPort: 8080
+#       protocol: TCP
+# Legacy list-based services schema (still supported):
 # - name: default
 #   type: ClusterIP # ClusterIP, NodePort, LoadBalancer, or ExternalName
 #   ports:
@@ -143,7 +159,25 @@ volumes: []
 
 # Volume claim templates for StatefulSets
 volumeClaimTemplates: []
-# Example:
+# Preferred map-based volumeClaimTemplates schema (recommended for deep merging):
+# volumeClaimTemplates:
+#   data:
+#     metadata:
+#       name: data
+#     spec:
+#       accessModes: ["ReadWriteOnce"]
+#       resources:
+#         requests:
+#           storage: 10Gi
+#   logs:
+#     metadata:
+#       name: logs
+#     spec:
+#       accessModes: ["ReadWriteOnce"]
+#       resources:
+#         requests:
+#           storage: 5Gi
+# Legacy list-based volumeClaimTemplates schema (still supported):
 # - metadata:
 #     name: data
 #   spec:
@@ -154,7 +188,19 @@ volumeClaimTemplates: []
 
 # Config Maps to be mounted as env vars or files in the pods
 configMaps: []
-# Example configmap:
+# Preferred map-based configMaps schema (recommended for deep merging):
+# configMaps:
+#   app-config:
+#     data:
+#       config.json: |
+#         {"apiUrl":"https://my.domain.com"}
+#     labels: {} # Optional labels
+#     annotations: {} # Optional annotations
+#   feature-flags:
+#     data:
+#       features.yaml: |
+#         enabled: true
+# Legacy list-based configMaps schema (still supported):
 # - name: some-configmap
 #   data:
 #     config.json: |
@@ -164,7 +210,18 @@ configMaps: []
 
 # Secrets to be mounted as env vars or files in the pods
 secrets: []
-# Example secret configuration:
+# Preferred map-based secrets schema (recommended for deep merging):
+# secrets:
+#   db-credentials:
+#     type: Opaque
+#     data:
+#       username: dXNlcm5hbWU= # base64 encoded
+#       password: cGFzc3dvcmQ= # base64 encoded
+#   api-keys:
+#     type: Opaque
+#     data:
+#       apiKey: YWJjMTIz # base64 encoded
+# Legacy list-based secrets schema (still supported):
 # - name: some-secret
 #   type: Opaque
 #   data:
@@ -526,7 +583,24 @@ ingress:
     #   acl network_allowed src 10.0.0.0/16 172.254.199.202 38.142.252.242 71.183.39.85
     #   http-request deny if !network_allowed
   routes: [] # Ingress routes
-    # Example route:
+    # Preferred map-based routes schema (recommended for deep merging):
+    # routes:
+    #   web:
+    #     host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
+    #     port: 3000
+    #     path: /
+    #     pathType: Prefix
+    #     service: web # Service name to route to
+    #   api:
+    #     host: "api.{{ .Values.ingress.domain }}"
+    #     port: 8080
+    #     path: /api
+    #     pathType: Prefix
+    #     service: api
+    #     secretName: custom-tls # Override TLS secret
+    #     aliases: [] # Additional host aliases for this route
+    #     annotations: {} # Route-specific annotations
+    # Legacy list-based routes schema (still supported):
     # - name: default
     #   host: "{{ .Values.ingress.subdomain }}.{{ .Values.ingress.domain }}"
     #   port: 3000
@@ -551,7 +625,28 @@ virtualservice:
   port: 80 # Port for the service
   annotations: {} # VirtualService annotations
   routes: [] # VirtualService routes
-    # Example route:
+    # Preferred map-based routes schema (recommended for deep merging):
+    # routes:
+    #   web:
+    #     host: "{{ .Values.virtualservice.host }}"
+    #     port: 3000
+    #     path: /
+    #     gateway: mesh
+    #     service: web # Service name to route to
+    #   api:
+    #     host: "api.example.com"
+    #     port: 8080
+    #     path: /api
+    #     service: api
+    #     tls: false # Enable TLS for this route
+    #     corsPolicy:
+    #       allowOrigins:
+    #       - exact: "https://example.com"
+    #     retries:
+    #       attempts: 3
+    #       perTryTimeout: 2s
+    #     timeout: 30s
+    # Legacy list-based routes schema (still supported):
     # - name: default
     #   host: "{{ .Values.virtualservice.host }}"
     #   port: 3000
@@ -587,7 +682,29 @@ gatewayApi:
   gatewayAnnotations: {} # Global annotations applied to every Gateway
   httpRouteAnnotations: {} # Global annotations applied to every HTTPRoute
   gateways: [] # Gateway definitions
-    # Example Gateway:
+    # Preferred map-based gateways schema (recommended for deep merging):
+    # gateways:
+    #   public:
+    #     gatewayClassName: istio
+    #     namespace: istio-gateway
+    #     labels: {}
+    #     annotations: {}
+    #     addresses:
+    #       - type: Hostname
+    #         value: public-gateway.example.com
+    #     listeners:
+    #       - name: http
+    #         protocol: HTTP
+    #         port: 80
+    #         hostname: "app.example.com"
+    #   internal:
+    #     gatewayClassName: istio
+    #     namespace: istio-gateway
+    #     listeners:
+    #       - name: http
+    #         protocol: HTTP
+    #         port: 80
+    # Legacy list-based gateways schema (still supported):
     # - name: public
     #   gatewayClassName: istio
     #   namespace: istio-gateway
@@ -613,7 +730,38 @@ gatewayApi:
     #           - name: app-cert
     #             kind: Secret
   httpRoutes: [] # HTTPRoute definitions
-    # Example HTTPRoute:
+    # Preferred map-based httpRoutes schema (recommended for deep merging):
+    # httpRoutes:
+    #   web:
+    #     hostnames:
+    #       - app.example.com
+    #     parentRefs:
+    #       - name: public
+    #         namespace: istio-gateway
+    #         sectionName: http
+    #     rules:
+    #       - matches:
+    #           - path:
+    #               type: PathPrefix
+    #               value: /
+    #         backendRefs:
+    #           - service: web
+    #             port: 3000
+    #   api:
+    #     hostnames:
+    #       - api.example.com
+    #     parentRefs:
+    #       - name: public
+    #         sectionName: http
+    #     rules:
+    #       - matches:
+    #           - path:
+    #               type: PathPrefix
+    #               value: /api
+    #         backendRefs:
+    #           - service: api
+    #             port: 8080
+    # Legacy list-based httpRoutes schema (still supported):
     # - name: default
     #   hostnames:
     #     - app.example.com
@@ -642,7 +790,20 @@ telemetry:
   defaultProvider: "envoy" # Default telemetry provider
   annotations: {} # Annotations for telemetry resources
   routes: [] # Telemetry routes configuration
-    # Example telemetry route:
+    # Preferred map-based routes schema (recommended for deep merging):
+    # routes:
+    #   access-logs:
+    #     providers:
+    #       - name: envoy
+    #     filter:
+    #       expression: "response.code >= 400"
+    #     annotations: {} # Route-specific annotations
+    #   error-logs:
+    #     providers:
+    #       - name: envoy
+    #     filter:
+    #       expression: "response.code >= 500"
+    # Legacy list-based routes schema (still supported):
     # - name: access-logs
     #   providers:
     #     - name: envoy
@@ -664,7 +825,27 @@ storageclass:
 crds:
   enabled: false # Enable CRD creation
   crds: [] # List of CRDs to create
-    # Example CRD:
+    # Preferred map-based crds schema (recommended for deep merging):
+    # crds:
+    #   my-crd:
+    #     spec:
+    #       group: example.com
+    #       version: v1
+    #       scope: Namespaced
+    #       names:
+    #         plural: mycrds
+    #         singular: mycrd
+    #         kind: MyCrd
+    #   another-crd:
+    #     spec:
+    #       group: example.com
+    #       version: v1
+    #       scope: Cluster
+    #       names:
+    #         plural: anothercrds
+    #         singular: anothercrd
+    #         kind: AnotherCrd
+    # Legacy list-based crds schema (still supported):
     # - name: my-crd
     #   spec:
     #     group: example.com

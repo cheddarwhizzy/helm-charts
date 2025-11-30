@@ -3,7 +3,53 @@
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $name := include "helm-base.fullname" . }}
-{{- range $k, $s := $root.Values.services }}
+{{- $services := .Values.services }}
+{{- if eq (kindOf $services) "map" }}
+{{- range $serviceName, $s := $services }}
+{{- $serviceKey := $serviceName }}
+{{- $type := default "ClusterIP" $s.type }}
+{{- if not (hasKey $s "name") }}
+{{- $_ := set $s "name" $serviceKey }}
+{{- end }}
+
+{{ $_ := set $root "s" $s }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{if $s.fullname}}{{$s.fullname}}{{else}}{{ $name }}-{{ default $serviceKey $s.name }}{{end}}
+  labels:
+{{ $commonLabels | indent 4 }}
+spec:
+  type: {{ $type }}
+  {{- if $s.clusterIP }}
+  clusterIP: {{ $s.clusterIP }}
+  {{- end }}
+  {{- if eq $type "ExternalName" }}
+  externalName: "{{ required "A valid .Values.services[$serviceName].externalName entry required!" (tpl $s.externalName $) }}"
+  {{- end }}
+{{- if and (ne $type "ExternalName") ($s.ports) }}
+  ports:
+  {{- range $k, $port := $s.ports }}
+  - port: {{ $port.port }}
+    targetPort: {{ default $port.port $port.targetPort }}
+    protocol: {{ default "TCP" $s.protocol }}
+    name: "{{ default $port.port $port.name }}"
+    {{- if $port.nodePort }}
+    nodePort: {{ $port.nodePort }}
+    {{- end }}
+  {{- end}}
+  selector:
+{{- if $s.selectorLabels }}
+{{- toYaml $s.selectorLabels | nindent 4 }}
+{{- else }}
+{{ $selectorLabels | indent 4 }}
+{{- end }}
+{{- end }}
+
+{{- end }}
+{{- else }}
+{{- range $k, $s := $services }}
 {{ $type := default "ClusterIP" $s.type }}
 
 {{ $_ := set $root "s" $s }}
@@ -41,6 +87,7 @@ spec:
 {{- end }}
 {{- end }}
 
+{{- end }}
 {{- end }}
 
 {{- end }}

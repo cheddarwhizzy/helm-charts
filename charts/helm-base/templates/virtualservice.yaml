@@ -5,7 +5,85 @@
 {{- $firstService := first .Values.services }}
 {{- $defaultServiceName := printf "%s-%s" $name $firstService.name }}
 {{if $firstService.fullname}}{{$defaultServiceName = $firstService.fullname}}{{end}}
-{{- range $route := $.Values.virtualservice.routes }}
+{{- $routes := $.Values.virtualservice.routes }}
+{{- if eq (kindOf $routes) "map" }}
+{{- range $routeName, $route := $routes }}
+{{- $newRoute := deepCopy $route }}
+{{- if not (hasKey $newRoute "name") }}
+{{- $_ := set $newRoute "name" $routeName }}
+{{- end }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $name }}-{{ tpl $newRoute.name $ }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+{{- $virtualserviceAnnotations := dict }}
+{{- if $newRoute.annotations }}
+{{- $virtualserviceAnnotations = merge $newRoute.annotations $.Values.virtualservice.annotations }}
+{{- else }}
+{{- $virtualserviceAnnotations = $.Values.virtualservice.annotations }}
+{{- end }}
+  {{- range $key, $value := $virtualserviceAnnotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+  {{- end }}
+
+spec:
+  hosts:
+    - "{{if $newRoute.host }}{{ tpl (tpl $newRoute.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.virtualservice.host $root) $root }}{{end}}"
+    {{- if or $newRoute.aliases $.Values.virtualservice.aliases }}
+    {{- range $_, $alias := (concat (default list $newRoute.aliases) $.Values.virtualservice.aliases) }}
+    - "{{ tpl $alias $ }}"
+    {{- end }}
+    {{- end }}
+  gateways:
+    {{- if $newRoute.gateway }}
+    - {{ tpl $newRoute.gateway $ }}
+    {{- else if $.Values.virtualservice.gateway }}
+    - {{ tpl $.Values.virtualservice.gateway $ }}
+    {{- else }}
+    - mesh
+    {{- end }}
+  {{- if $newRoute.tls }}
+  tls:
+    - match:
+        - port: 443
+          sniHosts:
+            {{- range $_, $host := (concat (list (tpl (tpl $newRoute.host $root) $root)) (default list $newRoute.aliases) $.Values.virtualservice.aliases) }}
+            - "{{ tpl $host $ }}"
+            {{- end }}
+      route:
+        - destination:
+            host: {{if or $newRoute.service $newRoute.serviceFullName}}{{ if $newRoute.serviceFullName }}{{tpl $newRoute.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $newRoute.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+            port:
+              number: {{ default $.Values.virtualservice.port $newRoute.port }}
+  {{- end }}
+  http:
+    - match:
+        - uri:
+            prefix: {{ tpl $newRoute.path $ }}
+      route:
+        - destination:
+            host: {{if or $newRoute.service $newRoute.serviceFullName}}{{ if $newRoute.serviceFullName }}{{tpl $newRoute.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $newRoute.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+            port:
+              number: {{ default $.Values.virtualservice.port $newRoute.port }}
+    {{- if $newRoute.corsPolicy }}
+      corsPolicy:
+        {{- toYaml $newRoute.corsPolicy | nindent 8 }}
+    {{- end }}
+    {{- if $newRoute.retries }}
+      retries:
+        {{- toYaml $newRoute.retries | nindent 8 }}
+    {{- end }}
+    {{- if $newRoute.timeout }}
+      timeout: {{ $newRoute.timeout }}
+    {{- end }}
+
+{{- end }}
+{{- else }}
+{{- range $route := $routes }}
 ---
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -75,6 +153,7 @@ spec:
       timeout: {{ $route.timeout }}
     {{- end }}
 
-{{- end -}}
+{{- end }}
+{{- end }}
 
 {{- end }}

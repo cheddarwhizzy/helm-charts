@@ -25,7 +25,21 @@ spec:
 
 {{- if .Values.volumeClaimTemplates }}
   volumeClaimTemplates:
-{{ tpl (toYaml .Values.volumeClaimTemplates) $ | nindent 4 }}
+{{- $volumeClaimTemplates := .Values.volumeClaimTemplates }}
+{{- if eq (kindOf $volumeClaimTemplates) "map" }}
+{{- range $templateName, $template := $volumeClaimTemplates }}
+{{- $newTemplate := deepCopy $template }}
+{{- if not (hasKey $newTemplate "metadata") }}
+{{- $_ := set $newTemplate "metadata" (dict) }}
+{{- end }}
+{{- if not (hasKey $newTemplate.metadata "name") }}
+{{- $_ := set $newTemplate.metadata "name" $templateName }}
+{{- end }}
+{{ tpl (toYaml $newTemplate) $ | nindent 4 }}
+{{- end }}
+{{- else }}
+{{ tpl (toYaml $volumeClaimTemplates) $ | nindent 4 }}
+{{- end }}
 {{- end }}
 
 {{- end }}

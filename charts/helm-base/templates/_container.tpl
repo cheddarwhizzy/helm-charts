@@ -66,6 +66,24 @@
   {{- end }}
 
   env:
+  {{- $hasListEnv := false }}
+  {{- if or (and $.env (eq (kindOf $.env) "slice")) (and $.Values.env (eq (kindOf $.Values.env) "slice")) (and $.Values.global.env (eq (kindOf $.Values.global.env) "slice")) }}
+    {{- $hasListEnv = true }}
+    {{- $envList := list }}
+    {{- if and $.Values.global.env (eq (kindOf $.Values.global.env) "slice") }}
+      {{- $envList = concat $envList $.Values.global.env }}
+    {{- end }}
+    {{- if and $.Values.env (eq (kindOf $.Values.env) "slice") }}
+      {{- $envList = concat $envList $.Values.env }}
+    {{- end }}
+    {{- if and $.env (eq (kindOf $.env) "slice") }}
+      {{- $envList = concat $envList $.env }}
+    {{- end }}
+    {{- if $envList }}
+{{ toYaml $envList | indent 2 }}
+    {{- end }}
+  {{- end }}
+  {{- if not $hasListEnv }}
   {{- $envMapYaml := include "helm-base.envVars" $ }}
   {{- if $envMapYaml }}
   {{- $envMap := fromYaml $envMapYaml }}
@@ -74,10 +92,6 @@
     value: "{{ with $dv }}{{ tpl (. | toString) $ }}{{end}}"
   {{- end }}
   {{- end }}
-
-  {{- $rawYaml := include "helm-base.envRawList" $ }}
-  {{- if $rawYaml }}
-{{ $rawYaml | indent 2 }}
   {{- end }}
 
   - name: POD_NAME
@@ -89,6 +103,11 @@
       fieldRef:
         apiVersion: v1
         fieldPath: status.podIP
+
+  {{- $rawYaml := include "helm-base.envRawList" $ }}
+  {{- if $rawYaml }}
+{{ $rawYaml | indent 2 }}
+  {{- end }}
 {{- end }} {{/* End env */}}
 
 {{- if $.waitFor -}}
@@ -146,15 +165,33 @@
 
 {{- if $.ports }}
   ports:
+{{- if eq (kindOf $.ports) "slice" }}
+{{- range $_, $port := $.ports }}
+  - name: {{ default (printf "p-%d" (default $port.port $port.containerPort)) $port.name }}
+    containerPort: {{ default $port.port $port.containerPort }}
+    {{- if $port.protocol }}
+    protocol: {{ $port.protocol }}
+    {{- else }}
+    protocol: TCP
+    {{- end }}
+    {{- if $port.hostPort }}
+    hostPort: {{ $port.hostPort }}
+    {{- end }}
+{{- end }}
+{{- else }}
 {{- range $k, $v := $.ports }}
 {{- if eq (kindOf $v) "map" }}
-  - name: {{ $v.name }}
-    containerPort: {{ $v.port }}
+  - name: {{ default ($k | toString) $v.name }}
+    containerPort: {{ default $v.port $v.containerPort }}
     protocol: {{ default "TCP" $v.protocol }}
+    {{- if $v.hostPort }}
+    hostPort: {{ $v.hostPort }}
+    {{- end }}
 {{- else }}
   - name: {{ printf "p-%s" ($k | toString) }}
     containerPort: {{ $v }}
     protocol: "TCP"
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

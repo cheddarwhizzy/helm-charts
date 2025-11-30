@@ -106,3 +106,83 @@ tests:
       - equal:
           path: spec.http[0].timeout
           value: 30s
+
+  # Map-based virtualservice routes tests
+  - it: should render map-based virtualservice route
+    set:
+      virtualservice:
+        enabled: true
+        host: app.example.com
+        port: 80
+        routes:
+          web:
+            host: app.example.com
+            port: 3000
+            path: /
+            service: web
+      services:
+        - name: web
+          type: ClusterIP
+          ports:
+            - name: http
+              port: 3000
+              targetPort: 3000
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-web
+
+  - it: should use map key as route name when name not provided
+    set:
+      virtualservice:
+        enabled: true
+        host: app.example.com
+        port: 80
+        routes:
+          api-route:
+            host: api.example.com
+            port: 8080
+            path: /api
+            service: api
+      services:
+        - name: api
+          type: ClusterIP
+          ports:
+            - name: http
+              port: 8080
+              targetPort: 8080
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-api-route
+
+  - it: should allow explicit name to override map key
+    set:
+      virtualservice:
+        enabled: true
+        host: app.example.com
+        port: 80
+        routes:
+          web:
+            name: custom-route
+            host: app.example.com
+            port: 3000
+            path: /
+            service: web
+      services:
+        - name: web
+          type: ClusterIP
+          ports:
+            - name: http
+              port: 3000
+              targetPort: 3000
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-helm-base-custom-route

@@ -2,7 +2,52 @@
 {{- $root := . }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $name := include "helm-base.fullname" . }}
-{{- range $route := $.Values.telemetry.routes }}
+{{- $routes := $.Values.telemetry.routes }}
+{{- if eq (kindOf $routes) "map" }}
+{{- range $routeName, $route := $routes }}
+{{- $newRoute := deepCopy $route }}
+{{- if not (hasKey $newRoute "name") }}
+{{- $_ := set $newRoute "name" $routeName }}
+{{- end }}
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: {{ $name }}-{{ tpl $newRoute.name $ }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+{{- $telemetryAnnotations := dict }}
+{{- if $newRoute.annotations }}
+{{- $telemetryAnnotations = merge $newRoute.annotations $.Values.telemetry.annotations }}
+{{- else }}
+{{- $telemetryAnnotations = $.Values.telemetry.annotations }}
+{{- end }}
+  {{- range $key, $value := $telemetryAnnotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+  {{- end }}
+
+spec:
+  selector:
+    matchLabels:
+{{ $commonLabels | indent 6 }}
+  accessLogging:
+    - providers:
+      {{- if $newRoute.providers }}
+      {{- range $provider := $newRoute.providers }}
+      - name: {{ tpl $provider.name $ }}
+      {{- end }}
+      {{- else }}
+      - name: {{ default "envoy" $root.Values.telemetry.defaultProvider }}
+      {{- end }}
+      {{- if $newRoute.filter }}
+      filter:
+        {{- toYaml $newRoute.filter | nindent 8 }}
+      {{- end }}
+
+{{- end }}
+{{- else }}
+{{- range $route := $routes }}
 ---
 apiVersion: telemetry.istio.io/v1alpha1
 kind: Telemetry
@@ -38,10 +83,7 @@ spec:
       filter:
         {{- toYaml $route.filter | nindent 8 }}
       {{- end }}
-      {{- if $route.filter }}
-      filter:
-        {{- toYaml $route.filter | nindent 8 }}
-      {{- end }}
 
-{{- end -}}
+{{- end }}
+{{- end }}
 {{- end -}}

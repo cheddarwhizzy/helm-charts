@@ -1,4 +1,6 @@
-{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PrometheusRule" }}
+{{- $hasCapability := .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/PrometheusRule" }}
+{{- $forceRender := and .Values.monitoring (eq (.Values.monitoring.forceRender | toString) "true") }}
+{{- if or $hasCapability $forceRender }}
 {{- if and .Values.monitoring .Values.monitoring.rules }}
 {{- range $name, $alerts := .Values.monitoring.rules }}
 ---
@@ -10,7 +12,7 @@ metadata:
     release: prometheus
 spec:
   groups:
-{{- if or (eq ($.Values.monitoring.tplConfig | toString) "true") (eq ($.Values.global.monitoring.tplConfig | toString) "true") }}
+{{- if or (eq ($.Values.monitoring.tplConfig | toString) "true") (and $.Values.global.monitoring (eq ($.Values.global.monitoring.tplConfig | toString) "true")) }}
 {{- tpl (toYaml $alerts.groups) $ | nindent 2 }}
 {{- else }}
 {{- toYaml $alerts.groups | nindent 2 }}

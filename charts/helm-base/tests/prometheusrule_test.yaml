@@ -11,6 +11,7 @@ tests:
   - it: should render prometheusrule with basic config
     set:
       monitoring:
+        forceRender: true
         enabled: true
         alert_name: my-app
         severity: warning
@@ -53,6 +54,7 @@ tests:
   - it: should render prometheusrule with redis preset
     set:
       monitoring:
+        forceRender: true
         enabled: true
         presets:
           redis:
@@ -70,13 +72,14 @@ tests:
       - equal:
           path: metadata.name
           value: RELEASE-NAME-helm-base
-      - containsDocument:
+      - equal:
           path: spec.groups[0].rules[0].alert
-          content: RedisMemoryUsage
+          value: RedisMemoryUsage
 
   - it: should render prometheusrule with rds preset
     set:
       monitoring:
+        forceRender: true
         enabled: true
         presets:
           rds:
@@ -94,6 +97,6 @@ tests:
       - equal:
           path: metadata.name
           value: RELEASE-NAME-helm-base
-      - containsDocument:
+      - equal:
           path: spec.groups[0].rules[0].alert
-          content: RDSMemoryUsage
+          value: RDSMemoryUsage

@@ -75,3 +75,97 @@ tests:
     asserts:
       - hasDocuments:
           count: 2
+
+  # Map-based crds tests
+  - it: should render map-based crd
+    set:
+      crds:
+        enabled: true
+        crds:
+          my-crd:
+            spec:
+              group: example.com
+              version: v1
+              scope: Namespaced
+              names:
+                plural: mycrds
+                singular: mycrd
+                kind: MyCrd
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CustomResourceDefinition
+      - equal:
+          path: metadata.name
+          value: mycrds.example.com
+
+  - it: should use map key as name when name not provided
+    set:
+      crds:
+        enabled: true
+        crds:
+          custom-crd:
+            spec:
+              group: example.com
+              version: v1
+              scope: Namespaced
+              names:
+                plural: customcrds
+                singular: customcrd
+                kind: CustomCrd
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: customcrds.example.com
+
+  - it: should allow explicit name to override map key
+    set:
+      crds:
+        enabled: true
+        crds:
+          crd-key:
+            name: override-name
+            spec:
+              group: example.com
+              version: v1
+              scope: Namespaced
+              names:
+                plural: overridenames
+                singular: overridename
+                kind: OverrideName
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: overridenames.example.com
+
+  - it: should render multiple map-based crds
+    set:
+      crds:
+        enabled: true
+        crds:
+          first:
+            spec:
+              group: first.example.com
+              version: v1
+              scope: Namespaced
+              names:
+                plural: firsts
+                singular: first
+                kind: First
+          second:
+            spec:
+              group: second.example.com
+              version: v1
+              scope: Cluster
+              names:
+                plural: seconds
+                singular: second
+                kind: Second
+    asserts:
+      - hasDocuments:
+          count: 2

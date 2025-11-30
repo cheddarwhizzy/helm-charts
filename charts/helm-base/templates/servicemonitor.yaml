@@ -1,6 +1,8 @@
 {{- $selectorLabels := include "helm-base.selectorLabels" . }}
 {{- $podLabels := include "helm-base.podLabels" . }}
-{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor" }}
+{{- $hasCapability := .Capabilities.APIVersions.Has "monitoring.coreos.com/v1/ServiceMonitor" }}
+{{- $forceRender := and .Values.monitoring (eq (.Values.monitoring.forceRender | toString) "true") }}
+{{- if or $hasCapability $forceRender }}
 {{- if and .Values.monitoring .Values.monitoring.slack_channel }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

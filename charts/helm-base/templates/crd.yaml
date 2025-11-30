@@ -1,16 +1,53 @@
 {{- if .Values.crds.enabled }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
-{{- range $key, $crd := .Values.crds.crds }}
+{{- $crds := .Values.crds.crds }}
+{{- $first := true }}
+{{- if eq (kindOf $crds) "map" }}
+{{- range $crdName, $crd := $crds }}
+{{- if not $first }}
+---
+{{- end }}
+{{- $first = false }}
+{{- $newCrd := deepCopy $crd }}
+{{- if not (hasKey $newCrd "name") }}
+{{- $_ := set $newCrd "name" $crdName }}
+{{- end }}
+{{- $crdMetadataName := $newCrd.name }}
+{{- if and $newCrd.spec.names.plural $newCrd.spec.group }}
+{{- $crdMetadataName = printf "%s.%s" $newCrd.spec.names.plural $newCrd.spec.group }}
+{{- end }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: {{ $crd.name }}
+  name: {{ $crdMetadataName }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+{{ $commonAnnotations | indent 4 }}
+spec:
+{{ tpl (toYaml $newCrd.spec) $ | nindent 2 }}
+{{- end }}
+{{- else }}
+{{- range $key, $crd := $crds }}
+{{- if not $first }}
+---
+{{- end }}
+{{- $first = false }}
+{{- $crdMetadataName := $crd.name }}
+{{- if and $crd.spec.names.plural $crd.spec.group }}
+{{- $crdMetadataName = printf "%s.%s" $crd.spec.names.plural $crd.spec.group }}
+{{- end }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: {{ $crdMetadataName }}
   labels:
 {{ $commonLabels | indent 4 }}
   annotations:
 {{ $commonAnnotations | indent 4 }}
 spec:
 {{ tpl (toYaml $crd.spec) $ | nindent 2 }}
+{{- end }}
 {{- end }}
 {{- end }}

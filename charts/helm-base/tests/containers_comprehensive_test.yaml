@@ -183,21 +183,22 @@ tests:
               readOnly: true
               subPath: config.json
     asserts:
+      - hasDocuments:
+          count: 1
       - equal:
-          path: spec.template.spec.containers[0].volumeMounts[0].name
-          value: data
+          path: spec.template.spec.containers[0].name
+          value: main
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].volumeMounts
       - equal:
-          path: spec.template.spec.containers[0].volumeMounts[0].mountPath
-          value: /data
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[1].name
-          value: config
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[1].readOnly
-          value: true
-      - equal:
-          path: spec.template.spec.containers[0].volumeMounts[1].subPath
-          value: config.json
+          path: spec.template.spec.containers[0].volumeMounts
+          value:
+            - name: config
+              mountPath: /etc/config
+              readOnly: true
+              subPath: config.json
+            - name: data
+              mountPath: /data
 
   # List-based volumeMounts
   - it: should render list-based volumeMounts

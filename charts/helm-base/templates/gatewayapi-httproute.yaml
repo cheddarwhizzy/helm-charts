@@ -4,10 +4,20 @@
 {{- $chartName := include "helm-base.fullname" . }}
 {{- $defaultServiceName := "" }}
 {{- if .Values.services }}
-  {{- $firstService := first .Values.services }}
-  {{- $defaultServiceName = printf "%s-%s" $chartName $firstService.name }}
-  {{- if $firstService.fullname }}
-    {{- $defaultServiceName = $firstService.fullname }}
+  {{- if kindIs "slice" .Values.services }}
+    {{- $firstService := first .Values.services }}
+    {{- $defaultServiceName = printf "%s-%s" $chartName $firstService.name }}
+    {{- if $firstService.fullname }}
+      {{- $defaultServiceName = $firstService.fullname }}
+    {{- end }}
+  {{- else if kindIs "map" .Values.services }}
+    {{- range $serviceName, $service := .Values.services }}
+      {{- $defaultServiceName = printf "%s-%s" $chartName $serviceName }}
+      {{- if $service.fullname }}
+        {{- $defaultServiceName = $service.fullname }}
+      {{- end }}
+      {{- break }}
+    {{- end }}
   {{- end }}
 {{- end }}
 {{- $globalAnnotations := default (dict) .Values.gatewayApi.httpRouteAnnotations }}

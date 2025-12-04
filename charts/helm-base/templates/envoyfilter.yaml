@@ -1,0 +1,30 @@
+{{- range $name, $config := .Values.envoyFilters }}
+{{- if $config.enabled }}
+{{- $root := $ }}
+{{- $commonLabels := include "helm-base.commonLabels" $root }}
+{{- $fullname := include "helm-base.fullname" $root }}
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {{ $fullname }}-{{ $name }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  {{- if $config.annotations }}
+  annotations:
+    {{- range $key, $value := $config.annotations }}
+    {{ $key }}: {{ tpl $value $root | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  {{- if $config.workloadSelector }}
+  workloadSelector:
+    {{- toYaml $config.workloadSelector | nindent 4 }}
+  {{- end }}
+  {{- if $config.configPatches }}
+  configPatches:
+    {{- toYaml $config.configPatches | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+

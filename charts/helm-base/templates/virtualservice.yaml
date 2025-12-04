@@ -2,9 +2,31 @@
 {{- $root := $ }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $name := include "helm-base.fullname" . }}
-{{- $firstService := first .Values.services }}
-{{- $defaultServiceName := printf "%s-%s" $name $firstService.name }}
-{{if $firstService.fullname}}{{$defaultServiceName = $firstService.fullname}}{{end}}
+{{- $services := .Values.services }}
+{{- $firstService := dict }}
+{{- $defaultServiceName := "" }}
+{{- if eq (kindOf $services) "map" }}
+  {{- $foundFirst := false }}
+  {{- range $serviceName, $s := $services }}
+    {{- if not $foundFirst }}
+      {{- $firstService = $s }}
+      {{- if not (hasKey $firstService "name") }}
+        {{- $_ := set $firstService "name" $serviceName }}
+      {{- end }}
+      {{- $defaultServiceName = printf "%s-%s" $name $firstService.name }}
+      {{- if $firstService.fullname }}
+        {{- $defaultServiceName = $firstService.fullname }}
+      {{- end }}
+      {{- $foundFirst = true }}
+    {{- end }}
+  {{- end }}
+{{- else }}
+  {{- $firstService = first $services }}
+  {{- $defaultServiceName = printf "%s-%s" $name $firstService.name }}
+  {{- if $firstService.fullname }}
+    {{- $defaultServiceName = $firstService.fullname }}
+  {{- end }}
+{{- end }}
 {{- $routes := $.Values.virtualservice.routes }}
 {{- if eq (kindOf $routes) "map" }}
 {{- range $routeName, $route := $routes }}
@@ -32,7 +54,13 @@ metadata:
 
 spec:
   hosts:
-    - "{{if $newRoute.host }}{{ tpl (tpl $newRoute.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.virtualservice.host $root) $root }}{{end}}"
+    {{- if $newRoute.host }}
+    - "{{ tpl (tpl $newRoute.host $root) $root }}"
+    {{- else if $root.Values.virtualservice.host }}
+    - "{{ tpl (tpl $root.Values.virtualservice.host $root) $root }}"
+    {{- else }}
+    - "{{ $defaultServiceName }}.{{ $.Release.Namespace }}.svc.cluster.local"
+    {{- end }}
     {{- if or $newRoute.aliases $.Values.virtualservice.aliases }}
     {{- range $_, $alias := (concat (default list $newRoute.aliases) $.Values.virtualservice.aliases) }}
     - "{{ tpl $alias $ }}"
@@ -40,9 +68,19 @@ spec:
     {{- end }}
   gateways:
     {{- if $newRoute.gateway }}
-    - {{ tpl $newRoute.gateway $ }}
+    {{- $gateway := tpl $newRoute.gateway $ }}
+    {{- if and (ne $gateway "mesh") (not (contains "/" $gateway)) }}
+    - istio-system/{{ $gateway }}
+    {{- else }}
+    - {{ $gateway }}
+    {{- end }}
     {{- else if $.Values.virtualservice.gateway }}
-    - {{ tpl $.Values.virtualservice.gateway $ }}
+    {{- $gateway := tpl $.Values.virtualservice.gateway $ }}
+    {{- if and (ne $gateway "mesh") (not (contains "/" $gateway)) }}
+    - istio-system/{{ $gateway }}
+    {{- else }}
+    - {{ $gateway }}
+    {{- end }}
     {{- else }}
     - mesh
     {{- end }}
@@ -69,6 +107,9 @@ spec:
             host: {{if or $newRoute.service $newRoute.serviceFullName}}{{ if $newRoute.serviceFullName }}{{tpl $newRoute.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $newRoute.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
             port:
               number: {{ default $.Values.virtualservice.port $newRoute.port }}
+    {{- if $newRoute.consistentHash }}
+          subset: {{ $newRoute.consistentHash.subset | default "default" }}
+    {{- end }}
     {{- if $newRoute.corsPolicy }}
       corsPolicy:
         {{- toYaml $newRoute.corsPolicy | nindent 8 }}
@@ -104,7 +145,13 @@ metadata:
 
 spec:
   hosts:
-    - "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.virtualservice.host $root) $root }}{{end}}"
+    {{- if $route.host }}
+    - "{{ tpl (tpl $route.host $root) $root }}"
+    {{- else if $root.Values.virtualservice.host }}
+    - "{{ tpl (tpl $root.Values.virtualservice.host $root) $root }}"
+    {{- else }}
+    - "{{ $defaultServiceName }}.{{ $.Release.Namespace }}.svc.cluster.local"
+    {{- end }}
     {{- if or $route.aliases $.Values.virtualservice.aliases }}
     {{- range $_, $alias := (concat (default list $route.aliases) $.Values.virtualservice.aliases) }}
     - "{{ tpl $alias $ }}"
@@ -112,9 +159,19 @@ spec:
     {{- end }}
   gateways:
     {{- if $route.gateway }}
-    - {{ tpl $route.gateway $ }}
+    {{- $gateway := tpl $route.gateway $ }}
+    {{- if and (ne $gateway "mesh") (not (contains "/" $gateway)) }}
+    - istio-system/{{ $gateway }}
+    {{- else }}
+    - {{ $gateway }}
+    {{- end }}
     {{- else if $.Values.virtualservice.gateway }}
-    - {{ tpl $.Values.virtualservice.gateway $ }}
+    {{- $gateway := tpl $.Values.virtualservice.gateway $ }}
+    {{- if and (ne $gateway "mesh") (not (contains "/" $gateway)) }}
+    - istio-system/{{ $gateway }}
+    {{- else }}
+    - {{ $gateway }}
+    {{- end }}
     {{- else }}
     - mesh
     {{- end }}
@@ -141,6 +198,9 @@ spec:
             host: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
             port:
               number: {{ default $.Values.virtualservice.port $route.port }}
+    {{- if $route.consistentHash }}
+          subset: {{ $route.consistentHash.subset | default "default" }}
+    {{- end }}
     {{- if $route.corsPolicy }}
       corsPolicy:
         {{- toYaml $route.corsPolicy | nindent 8 }}

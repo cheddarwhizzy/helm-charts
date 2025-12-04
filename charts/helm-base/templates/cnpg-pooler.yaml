@@ -35,13 +35,6 @@ spec:
         resources:
           {{- toYaml .Values.cnpg.pooler.resources | nindent 10 }}
   {{- end }}
-  
-  {{- with .Values.cnpg.pooler.service }}
-    {{- if .type }}
-  service:
-    type: {{ .type }}
-    {{- end }}
-  {{- end }}
 {{- end }}
 
 

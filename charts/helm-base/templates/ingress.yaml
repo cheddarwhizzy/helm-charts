@@ -2,9 +2,14 @@
 {{- $root := $ }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $name := include "helm-base.fullname" . }}
-{{- $firstService := first .Values.services }}
-{{- $defaultServiceName := printf "%s-%s" $name $firstService.name }}
-{{if $firstService.fullname}}{{$defaultServiceName = $firstService.fullname}}{{end}}
+{{- $defaultServiceName := include "helm-base.defaultServiceName" . }}
+{{- if not $defaultServiceName }}
+  {{- if .Values.services }}
+    {{- fail (printf "Services defined but could not determine default service name. Services type: %s, Services value: %v" (kindOf .Values.services) .Values.services) }}
+  {{- else }}
+    {{- fail "No services found in .Values.services. At least one service must be defined in base.services in values.yaml" }}
+  {{- end }}
+{{- end }}
 {{- $routes := $.Values.ingress.routes }}
 {{- if eq (kindOf $routes) "map" }}
 {{- range $routeName, $route := $routes }}
@@ -36,7 +41,7 @@ spec:
     - host: "{{if $newRoute.host }}{{ tpl (tpl $newRoute.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
       http:
         paths:
-          - path: {{ tpl $newRoute.path $ }}
+          - path: {{ tpl (default "/" $newRoute.path) $ }}
             pathType: {{ default "Prefix" $newRoute.pathType }}
             backend:
               service:
@@ -48,7 +53,7 @@ spec:
     - host: "{{ tpl $alias $ }}"
       http:
         paths:
-          - path: {{ tpl $newRoute.path $ }}
+          - path: {{ tpl (default "/" $newRoute.path) $ }}
             pathType: {{ default "Prefix" $newRoute.pathType }}
             backend:
               service:
@@ -97,7 +102,7 @@ spec:
     - host: "{{if $route.host }}{{ tpl (tpl $route.host $root) $root }}{{else}}{{ tpl (tpl $root.Values.ingress.host $root) $root }}{{end}}"
       http:
         paths:
-          - path: {{ tpl $route.path $ }}
+          - path: {{ tpl (default "/" $route.path) $ }}
             pathType: {{ default "Prefix" $route.pathType }}
             backend:
               service:
@@ -109,7 +114,7 @@ spec:
     - host: "{{ tpl $alias $ }}"
       http:
         paths:
-          - path: {{ tpl $route.path $ }}
+          - path: {{ tpl (default "/" $route.path) $ }}
             pathType: {{ default "Prefix" $route.pathType }}
             backend:
               service:

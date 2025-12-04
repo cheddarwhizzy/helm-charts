@@ -1,0 +1,37 @@
+{{- if .Values.authorizationPolicy.enabled }}
+{{- $root := $ }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $name := include "helm-base.fullname" . }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $name }}-ip-whitelist
+  labels:
+{{ $commonLabels | indent 4 }}
+  {{- if .Values.authorizationPolicy.annotations }}
+  annotations:
+    {{- range $key, $value := .Values.authorizationPolicy.annotations }}
+    {{ $key }}: {{ tpl $value $ | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  {{- if .Values.authorizationPolicy.selector }}
+  selector:
+    {{- toYaml .Values.authorizationPolicy.selector | nindent 4 }}
+  {{- end }}
+  action: {{ .Values.authorizationPolicy.action | default "ALLOW" }}
+  {{- if .Values.authorizationPolicy.allowedIPs }}
+  rules:
+    {{- range $ip := .Values.authorizationPolicy.allowedIPs }}
+    - from:
+        - source:
+            remoteIpBlocks:
+              - {{ $ip }}
+    {{- end }}
+  {{- else if .Values.authorizationPolicy.rules }}
+  rules:
+    {{- toYaml .Values.authorizationPolicy.rules | nindent 4 }}
+  {{- end }}
+{{- end }}
+

@@ -41,8 +41,8 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{- end -}}
 
 {{- define "helm-base.commonLabels" -}}
-app: {{ include "helm-base.name" . }}
-release: {{ include "helm-base.name" . }}
+app: {{ include "helm-base.fullname" . }}
+release: {{ include "helm-base.fullname" . }}
 {{- end -}}
 
 {{- define "helm-base.labels" -}}
@@ -60,8 +60,8 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
 {{- define "helm-base.selectorLabels" }}
-app: {{ include "helm-base.name" . }}
-release: {{ include "helm-base.name" . }}
+app: {{ include "helm-base.fullname" . }}
+release: {{ include "helm-base.fullname" . }}
 {{ end -}}
 
 {{/*
@@ -423,11 +423,45 @@ Environment variable helpers
 
 
 {{- define "helm-base.podAnnotations" }}
-{{- if (concat .Values.configMaps .Values.global.configMaps) }}
-checksum/config: {{ (concat .Values.configMaps .Values.global.configMaps) | toString | sha256sum }}
+{{- $configMapsList := list }}
+{{- $chartConfigMaps := default (list) .Values.configMaps }}
+{{- $globalConfigMaps := default (list) .Values.global.configMaps }}
+{{- if eq (kindOf $chartConfigMaps) "map" }}
+  {{- range $configMapName, $c := $chartConfigMaps }}
+    {{- $configMapsList = append $configMapsList $c }}
+  {{- end }}
+{{- else }}
+  {{- $configMapsList = concat $configMapsList $chartConfigMaps }}
 {{- end }}
-{{- if (concat .Values.secrets .Values.global.secrets) }}
-checksum/secrets: {{ (concat .Values.secrets .Values.global.secrets) | toString | sha256sum }}
+{{- if eq (kindOf $globalConfigMaps) "map" }}
+  {{- range $configMapName, $c := $globalConfigMaps }}
+    {{- $configMapsList = append $configMapsList $c }}
+  {{- end }}
+{{- else }}
+  {{- $configMapsList = concat $configMapsList $globalConfigMaps }}
+{{- end }}
+{{- if $configMapsList }}
+checksum/config: {{ $configMapsList | toString | sha256sum }}
+{{- end }}
+{{- $secretsList := list }}
+{{- $chartSecrets := default (list) .Values.secrets }}
+{{- $globalSecrets := default (list) .Values.global.secrets }}
+{{- if eq (kindOf $chartSecrets) "map" }}
+  {{- range $secretName, $s := $chartSecrets }}
+    {{- $secretsList = append $secretsList $s }}
+  {{- end }}
+{{- else }}
+  {{- $secretsList = concat $secretsList $chartSecrets }}
+{{- end }}
+{{- if eq (kindOf $globalSecrets) "map" }}
+  {{- range $secretName, $s := $globalSecrets }}
+    {{- $secretsList = append $secretsList $s }}
+  {{- end }}
+{{- else }}
+  {{- $secretsList = concat $secretsList $globalSecrets }}
+{{- end }}
+{{- if $secretsList }}
+checksum/secrets: {{ $secretsList | toString | sha256sum }}
 {{- end }}
 deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
 {{- if .Values.podAnnotations }}
@@ -572,4 +606,28 @@ securityContext:
 {{- end -}}
 
 {{- join "|" $hosts -}}
+{{- end -}}
+
+{{/*
+Get the default service name from services (supports both map and list formats)
+*/}}
+{{- define "helm-base.defaultServiceName" -}}
+{{- $name := include "helm-base.fullname" . }}
+{{- if kindIs "map" .Values.services }}
+  {{- range $serviceName, $service := .Values.services }}
+    {{- if $service.fullname }}
+      {{- $service.fullname }}
+    {{- else }}
+      {{- printf "%s-%s" $name $serviceName }}
+    {{- end }}
+    {{- break }}
+  {{- end }}
+{{- else if kindIs "slice" .Values.services }}
+  {{- $firstService := first .Values.services }}
+  {{- if $firstService.fullname }}
+    {{- $firstService.fullname }}
+  {{- else }}
+    {{- printf "%s-%s" $name $firstService.name }}
+  {{- end }}
+{{- end }}
 {{- end -}}

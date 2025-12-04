@@ -672,6 +672,86 @@ virtualservice:
     #   annotations: {} # Route-specific annotations
   aliases: [] # Additional host aliases
 
+# Istio AuthorizationPolicy configuration for IP whitelisting
+authorizationPolicy:
+  enabled: false # Enable AuthorizationPolicy
+  action: ALLOW # Action to take (ALLOW or DENY)
+  selector: {} # Workload selector (matches pod labels)
+    # Example:
+    # matchLabels:
+    #   app.kubernetes.io/name: myapp
+  annotations: {} # AuthorizationPolicy annotations
+  # Simple IP whitelist configuration (recommended)
+  allowedIPs: [] # List of CIDR blocks to allow
+    # Example:
+    # - 192.168.1.100/32
+    # - 10.0.0.0/24
+  # Advanced rules configuration (optional, overrides allowedIPs if set)
+  rules: [] # Custom authorization rules
+    # Example:
+    # - from:
+    #     - source:
+    #         remoteIpBlocks:
+    #           - 192.168.1.100/32
+    #     - source:
+    #         principals:
+    #           - cluster.local/ns/default/sa/myapp
+    #   to:
+    #     - operation:
+    #         methods: ["GET", "POST"]
+
+# Istio EnvoyFilter configuration
+# Used to configure Envoy proxy behavior, e.g., for X-Forwarded-For header handling
+envoyFilters: {}
+  # Example XFF configuration for IP whitelisting:
+  # xff-ip-whitelist-filter:
+  #   enabled: true
+  #   workloadSelector:
+  #     labels:
+  #       envoy.filters.enable-whitelisted-filter: "true"
+  #   configPatches:
+  #     - applyTo: NETWORK_FILTER
+  #       match:
+  #         context: SIDECAR_INBOUND
+  #         listener:
+  #           filterChain:
+  #             filter:
+  #               name: envoy.filters.network.http_connection_manager
+  #       patch:
+  #         operation: MERGE
+  #         value:
+  #           typed_config:
+  #             "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+  #             xff_num_trusted_hops: 3
+  #             use_remote_address: true
+  #
+  # Example gzip compression filter:
+  # gzip-filter:
+  #   enabled: true
+  #   workloadSelector:
+  #     labels:
+  #       envoy.filters.enable-gzip-filter: "true"
+  #   configPatches:
+  #     - applyTo: HTTP_FILTER
+  #       match:
+  #         context: SIDECAR_INBOUND
+  #         listener:
+  #           filterChain:
+  #             filter:
+  #               name: envoy.filters.network.http_connection_manager
+  #               subFilter:
+  #                 name: envoy.filters.http.router
+  #       patch:
+  #         operation: INSERT_BEFORE
+  #         value:
+  #           name: envoy.filters.http.compressor
+  #           typed_config:
+  #             '@type': type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
+  #             compressor_library:
+  #               name: text_optimized
+  #               typed_config:
+  #                 '@type': type.googleapis.com/envoy.extensions.compression.gzip.compressor.v3.Gzip
+  #             remove_accept_encoding_header: true
 
 # Gateway API configuration
 gatewayApi:

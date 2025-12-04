@@ -41,7 +41,7 @@
 {{- if $.workingDir }}
   workingDir: {{ tpl $.workingDir $ }}
 {{- end }}
-{{- if $.resources }}
+{{- if and $.resources (or $.resources.requests $.resources.limits) }}
   resources:
 {{ tpl (toYaml $.resources) $ | indent 4 }}
 {{- end -}} {{/* End resources */}}

@@ -11,7 +11,11 @@ metadata:
 spec:
   instances: {{ .Values.cnpg.cluster.instances }}
   
+  {{- if .Values.cnpg.cluster.imageName }}
+  imageName: {{ .Values.cnpg.cluster.imageName }}
+  {{- else }}
   imageName: {{ printf "ghcr.io/cloudnative-pg/postgresql:%d" (.Values.cnpg.cluster.postgresVersion | int) }}
+  {{- end }}
   
   {{- if .Values.cnpg.cluster.storage }}
   storage:

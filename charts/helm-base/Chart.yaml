@@ -2,6 +2,6 @@ apiVersion: v1
 description: Base helm chart for DRY Kubernetes manifests
 name: helm-base
 # minor version (0.1.x) added and incremented by Jenkins. Only change for x or y in x.y.z
-version: 0.1.44
+version: 0.1.45
 # also set by jenkins to <branch-commit>
-appVersion: 0.1.44
+appVersion: 0.1.45

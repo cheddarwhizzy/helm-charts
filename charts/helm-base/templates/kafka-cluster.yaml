@@ -8,6 +8,11 @@ metadata:
   labels:
     {{- include "helm-base.labels" . | nindent 4 }}
     app.kubernetes.io/component: kafka
+  {{- if .Values.kafka.kraft.enabled }}
+  annotations:
+    strimzi.io/kraft: "enabled"
+    strimzi.io/node-pools: "enabled"
+  {{- end }}
 spec:
   kafka:
     version: {{ .Values.kafka.cluster.version }}
@@ -35,17 +40,17 @@ spec:
       {{- toYaml .Values.kafka.cluster.config | nindent 6 }}
     {{- end }}
     
-    {{- if .Values.kafka.cluster.storage }}
+    {{- if and .Values.kafka.cluster.storage (not .Values.kafka.kraft.enabled) }}
     storage:
       {{- toYaml .Values.kafka.cluster.storage | nindent 6 }}
     {{- end }}
     
-    {{- if .Values.kafka.cluster.resources }}
+    {{- if and .Values.kafka.cluster.resources (not .Values.kafka.kraft.enabled) }}
     resources:
       {{- toYaml .Values.kafka.cluster.resources | nindent 6 }}
     {{- end }}
     
-    {{- if .Values.kafka.cluster.jvmOptions }}
+    {{- if and .Values.kafka.cluster.jvmOptions (not .Values.kafka.kraft.enabled) }}
     jvmOptions:
       {{- toYaml .Values.kafka.cluster.jvmOptions | nindent 6 }}
     {{- end }}

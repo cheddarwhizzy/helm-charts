@@ -463,7 +463,6 @@ checksum/config: {{ $configMapsList | toString | sha256sum }}
 {{- if $secretsList }}
 checksum/secrets: {{ $secretsList | toString | sha256sum }}
 {{- end }}
-deployment_date: '{{ now | date "2006-01-02 15:04:05" }}'
 {{- if .Values.podAnnotations }}
 {{- with .Values.podAnnotations }}
 {{- range $k, $v := . }}

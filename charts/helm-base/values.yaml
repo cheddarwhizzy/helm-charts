@@ -672,6 +672,37 @@ virtualservice:
     #   annotations: {} # Route-specific annotations
   aliases: [] # Additional host aliases
 
+# Istio Gateway configuration
+gateway:
+  enabled: false # Enable Gateway
+  selector: {} # Gateway selector (matches gateway pod labels)
+    # Example:
+    # istio: ingressgateway
+  annotations: {} # Gateway annotations
+  servers: [] # Gateway servers
+    # Example:
+    # - port:
+    #     number: 80
+    #     name: http
+    #     protocol: HTTP
+    #   hosts:
+    #     - example.com
+    # - port:
+    #     number: 443
+    #     name: https
+    #     protocol: HTTPS
+    #   tls:
+    #     mode: SIMPLE
+    #     credentialName: example-tls
+    #   hosts:
+    #     - example.com
+    # - port:
+    #     number: 7000
+    #     name: tcp
+    #     protocol: TCP
+    #   hosts:
+    #     - tunnel.example.com
+
 # Istio AuthorizationPolicy configuration for IP whitelisting
 authorizationPolicy:
   enabled: false # Enable AuthorizationPolicy

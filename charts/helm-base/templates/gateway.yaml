@@ -1,0 +1,40 @@
+{{- if .Values.gateway.enabled }}
+{{- $root := . }}
+{{- $commonLabels := include "helm-base.commonLabels" . }}
+{{- $name := include "helm-base.fullname" . }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: {{ $name }}-gateway
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  annotations:
+{{- range $key, $value := .Values.gateway.annotations }}
+    {{ $key }}: {{ (tpl $value $) | quote }}
+{{- end }}
+spec:
+  selector:
+{{- if .Values.gateway.selector }}
+{{ .Values.gateway.selector | toYaml | indent 4 }}
+{{- else }}
+    istio: ingressgateway
+{{- end }}
+  servers:
+{{- range $server := .Values.gateway.servers }}
+  - port:
+      number: {{ $server.port.number }}
+      name: {{ $server.port.name | default (printf "port-%d" $server.port.number) }}
+      protocol: {{ $server.port.protocol | default "HTTP" }}
+{{- if $server.tls }}
+    tls:
+{{ $server.tls | toYaml | indent 6 }}
+{{- end }}
+    hosts:
+{{- range $host := $server.hosts }}
+    - {{ tpl $host $root | quote }}
+{{- end }}
+{{- end }}
+{{- end }}
+

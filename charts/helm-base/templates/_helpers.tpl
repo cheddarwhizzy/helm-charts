@@ -347,14 +347,14 @@ Environment variable helpers
   {{- range $i, $e := $items }}
     {{- if $e.configMapRef }}
       {{- if $e.configMapRef.fullname }}
-        {{- $_ := set $e.configMapRef "name" $e.configMapRef.fullname }}
+        {{- $_ := set $e "configMapRef" (dict "name" $e.configMapRef.fullname) }}
       {{- else if $e.configMapRef.name }}
         {{- $_ := set $e.configMapRef "name" (printf "%s-%s" $fullname $e.configMapRef.name) }}
       {{- end }}
     {{- end }}
     {{- if $e.secretRef }}
       {{- if $e.secretRef.fullname }}
-        {{- $_ := set $e.secretRef "name" $e.secretRef.fullname }}
+        {{- $_ := set $e "secretRef" (dict "name" $e.secretRef.fullname) }}
       {{- else if $e.secretRef.name }}
         {{- $_ := set $e.secretRef "name" (printf "%s-%s" $fullname $e.secretRef.name) }}
       {{- end }}

@@ -67,7 +67,11 @@ spec:
     {{- end }}
     {{- end }}
   gateways:
-    {{- if $newRoute.gateway }}
+    {{- if $newRoute.gateways }}
+    {{- range $gateway := $newRoute.gateways }}
+    - {{ tpl $gateway $ }}
+    {{- end }}
+    {{- else if $newRoute.gateway }}
     {{- $gateway := tpl $newRoute.gateway $ }}
     {{- if and (ne $gateway "mesh") (not (contains "/" $gateway)) }}
     - istio-system/{{ $gateway }}
@@ -84,7 +88,24 @@ spec:
     {{- else }}
     - mesh
     {{- end }}
-  {{- if $newRoute.tls }}
+  {{- if $newRoute.tcp }}
+  tcp:
+    - match:
+        {{- if $newRoute.tcp.match }}
+        {{- range $match := $newRoute.tcp.match }}
+        - {{ $match | toYaml | nindent 10 | trimSuffix "\n" }}
+        {{- end }}
+        {{- else if $newRoute.tcp.port }}
+        - port: {{ $newRoute.tcp.port }}
+        {{- else }}
+        - port: {{ default $.Values.virtualservice.port $newRoute.port }}
+        {{- end }}
+      route:
+        - destination:
+            host: {{if or $newRoute.service $newRoute.serviceFullName}}{{ if $newRoute.serviceFullName }}{{tpl $newRoute.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $newRoute.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+            port:
+              number: {{ if $newRoute.tcp.destinationPort }}{{ $newRoute.tcp.destinationPort }}{{ else }}{{ default $.Values.virtualservice.port $newRoute.port }}{{ end }}
+  {{- else if $newRoute.tls }}
   tls:
     - match:
         - port: 443
@@ -98,6 +119,7 @@ spec:
             port:
               number: {{ default $.Values.virtualservice.port $newRoute.port }}
   {{- end }}
+  {{- if not $newRoute.tcp }}
   http:
     - match:
         - uri:
@@ -121,7 +143,7 @@ spec:
     {{- if $newRoute.timeout }}
       timeout: {{ $newRoute.timeout }}
     {{- end }}
-
+  {{- end }}
 {{- end }}
 {{- else }}
 {{- range $route := $routes }}
@@ -158,7 +180,11 @@ spec:
     {{- end }}
     {{- end }}
   gateways:
-    {{- if $route.gateway }}
+    {{- if $route.gateways }}
+    {{- range $gateway := $route.gateways }}
+    - {{ tpl $gateway $ }}
+    {{- end }}
+    {{- else if $route.gateway }}
     {{- $gateway := tpl $route.gateway $ }}
     {{- if and (ne $gateway "mesh") (not (contains "/" $gateway)) }}
     - istio-system/{{ $gateway }}
@@ -175,7 +201,24 @@ spec:
     {{- else }}
     - mesh
     {{- end }}
-  {{- if $route.tls }}
+  {{- if $route.tcp }}
+  tcp:
+    - match:
+        {{- if $route.tcp.match }}
+        {{- range $match := $route.tcp.match }}
+        - {{ $match | toYaml | nindent 10 | trimSuffix "\n" }}
+        {{- end }}
+        {{- else if $route.tcp.port }}
+        - port: {{ $route.tcp.port }}
+        {{- else }}
+        - port: {{ default $.Values.virtualservice.port $route.port }}
+        {{- end }}
+      route:
+        - destination:
+            host: {{if or $route.service $route.serviceFullName}}{{ if $route.serviceFullName }}{{tpl $route.serviceFullName $ }}{{else}}{{printf "%s-%s" $name (tpl $route.service $)}}{{end}}{{else}}{{ $defaultServiceName }}{{end}}
+            port:
+              number: {{ if $route.tcp.destinationPort }}{{ $route.tcp.destinationPort }}{{ else }}{{ default $.Values.virtualservice.port $route.port }}{{ end }}
+  {{- else if $route.tls }}
   tls:
     - match:
         - port: 443
@@ -189,6 +232,7 @@ spec:
             port:
               number: {{ default $.Values.virtualservice.port $route.port }}
   {{- end }}
+  {{- if not $route.tcp }}
   http:
     - match:
         - uri:
@@ -212,7 +256,7 @@ spec:
     {{- if $route.timeout }}
       timeout: {{ $route.timeout }}
     {{- end }}
-
+  {{- end }}
 {{- end }}
 {{- end }}
 

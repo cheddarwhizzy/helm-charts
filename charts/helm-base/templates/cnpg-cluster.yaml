@@ -50,6 +50,36 @@ spec:
       localeCollate: {{ .Values.cnpg.cluster.bootstrap.initdb.locale }}
       localeCType: {{ .Values.cnpg.cluster.bootstrap.initdb.locale }}
       {{- end }}
+      {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitSQL }}
+      postInitSQL:
+        {{- toYaml .Values.cnpg.cluster.bootstrap.initdb.postInitSQL | nindent 8 }}
+      {{- end }}
+      {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitSQLRefs }}
+      postInitSQLRefs:
+        {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitSQLRefs.secretRefs }}
+        secretRefs:
+          {{- toYaml .Values.cnpg.cluster.bootstrap.initdb.postInitSQLRefs.secretRefs | nindent 10 }}
+        {{- end }}
+        {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitSQLRefs.configMapRefs }}
+        configMapRefs:
+          {{- toYaml .Values.cnpg.cluster.bootstrap.initdb.postInitSQLRefs.configMapRefs | nindent 10 }}
+        {{- end }}
+      {{- end }}
+      {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitApplicationSQL }}
+      postInitApplicationSQL:
+        {{- toYaml .Values.cnpg.cluster.bootstrap.initdb.postInitApplicationSQL | nindent 8 }}
+      {{- end }}
+      {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitApplicationSQLRefs }}
+      postInitApplicationSQLRefs:
+        {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitApplicationSQLRefs.secretRefs }}
+        secretRefs:
+          {{- toYaml .Values.cnpg.cluster.bootstrap.initdb.postInitApplicationSQLRefs.secretRefs | nindent 10 }}
+        {{- end }}
+        {{- if .Values.cnpg.cluster.bootstrap.initdb.postInitApplicationSQLRefs.configMapRefs }}
+        configMapRefs:
+          {{- toYaml .Values.cnpg.cluster.bootstrap.initdb.postInitApplicationSQLRefs.configMapRefs | nindent 10 }}
+        {{- end }}
+      {{- end }}
   {{- end }}
   
   {{- if .Values.cnpg.cluster.monitoring.enabled }}
@@ -82,6 +112,7 @@ spec:
   backup:
     barmanObjectStore:
       destinationPath: s3://{{ .Values.cnpg.backup.s3.bucket }}{{ .Values.cnpg.backup.s3.path }}
+      serverName: {{ .Values.cnpg.cluster.name | default (include "helm-base.fullname" .) }}
       {{- if .Values.cnpg.backup.s3.endpoint }}
       endpointURL: {{ .Values.cnpg.backup.s3.endpoint }}
       {{- end }}

@@ -704,6 +704,7 @@ gateway:
     #     - tunnel.example.com
 
 # Istio AuthorizationPolicy configuration for IP whitelisting
+# Legacy single policy support (backward compatible)
 authorizationPolicy:
   enabled: false # Enable AuthorizationPolicy
   action: ALLOW # Action to take (ALLOW or DENY)
@@ -730,6 +731,42 @@ authorizationPolicy:
     #   to:
     #     - operation:
     #         methods: ["GET", "POST"]
+
+# Istio AuthorizationPolicies configuration (multiple policies support)
+# Preferred over single authorizationPolicy for multiple policies
+authorizationPolicies: {}
+  # Example scanner block policy:
+  # scanner-block:
+  #   enabled: true
+  #   action: DENY
+  #   selector:
+  #     matchLabels:
+  #       app: myapp
+  #   rules:
+  #     - to:
+  #         - operation:
+  #             paths:
+  #               - "/.X*"
+  #               - "/tmp*"
+  #               - "/.env*"
+  #
+  # Example admin isolation policy:
+  # admin-isolation:
+  #   enabled: true
+  #   action: DENY
+  #   selector:
+  #     matchLabels:
+  #       app: myapp
+  #   rules:
+  #     - to:
+  #         - operation:
+  #             paths:
+  #               - "/admin*"
+  #               - "/api/admin*"
+  #       when:
+  #         - key: source.ip
+  #           notValues:
+  #             - "1.2.3.4/32"  # Replace with allowed IPs
 
 # Istio EnvoyFilter configuration
 # Used to configure Envoy proxy behavior, e.g., for X-Forwarded-For header handling

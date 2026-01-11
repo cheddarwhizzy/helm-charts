@@ -1,3 +1,42 @@
+{{- range $name, $config := .Values.authorizationPolicies }}
+{{- if $config.enabled }}
+{{- $root := $ }}
+{{- $commonLabels := include "helm-base.commonLabels" $root }}
+{{- $fullname := include "helm-base.fullname" $root }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ $fullname }}-{{ $name }}
+  labels:
+{{ $commonLabels | indent 4 }}
+  {{- if $config.annotations }}
+  annotations:
+    {{- range $key, $value := $config.annotations }}
+    {{ $key }}: {{ tpl $value $root | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  {{- if $config.selector }}
+  selector:
+    {{- toYaml $config.selector | nindent 4 }}
+  {{- end }}
+  action: {{ $config.action | default "ALLOW" }}
+  {{- if $config.allowedIPs }}
+  rules:
+    {{- range $ip := $config.allowedIPs }}
+    - from:
+        - source:
+            remoteIpBlocks:
+              - {{ $ip }}
+    {{- end }}
+  {{- else if $config.rules }}
+  rules:
+    {{- toYaml $config.rules | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+
 {{- if .Values.authorizationPolicy.enabled }}
 {{- $root := $ }}
 {{- $commonLabels := include "helm-base.commonLabels" . }}

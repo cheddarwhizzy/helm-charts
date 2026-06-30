@@ -42,11 +42,6 @@ spec:
         {{- toYaml .template.pod.affinity | nindent 8 }}
       {{- end }}
       
-      {{- if .template.pod.nodeSelector }}
-      nodeSelector:
-        {{- toYaml .template.pod.nodeSelector | nindent 8 }}
-      {{- end }}
-      
       {{- if .template.pod.tolerations }}
       tolerations:
         {{- toYaml .template.pod.tolerations | nindent 8 }}

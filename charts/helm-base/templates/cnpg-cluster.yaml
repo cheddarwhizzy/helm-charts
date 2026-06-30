@@ -10,7 +10,11 @@ metadata:
     app.kubernetes.io/component: database
 spec:
   instances: {{ .Values.cnpg.cluster.instances }}
-  
+
+  {{- if hasKey .Values.cnpg.cluster "enablePDB" }}
+  enablePDB: {{ .Values.cnpg.cluster.enablePDB }}
+  {{- end }}
+
   {{- if .Values.cnpg.cluster.imageName }}
   imageName: {{ .Values.cnpg.cluster.imageName }}
   {{- else }}

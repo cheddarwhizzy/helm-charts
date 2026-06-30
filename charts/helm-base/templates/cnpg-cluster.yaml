@@ -97,12 +97,12 @@ spec:
     topologyKey: {{ .Values.cnpg.cluster.affinity.topologyKey | default "topology.kubernetes.io/zone" }}
   {{- end }}
   
-  {{- if .Values.cnpg.cluster.nodeSelector }}
+  {{- if hasKey .Values.cnpg.cluster "nodeSelector" }}
   nodeSelector:
     {{- toYaml .Values.cnpg.cluster.nodeSelector | nindent 4 }}
   {{- end }}
-  
-  {{- if .Values.cnpg.cluster.tolerations }}
+
+  {{- if hasKey .Values.cnpg.cluster "tolerations" }}
   tolerations:
     {{- toYaml .Values.cnpg.cluster.tolerations | nindent 4 }}
   {{- end }}
@@ -112,7 +112,14 @@ spec:
     {{- toYaml .Values.cnpg.cluster.env | nindent 4 }}
   {{- end }}
   
-  {{- if and .Values.cnpg.backup.enabled .Values.cnpg.backup.s3.enabled }}
+  {{- if .Values.cnpg.backup.enabled }}
+  {{- if .Values.cnpg.backup.barmanObjectStore }}
+  backup:
+    barmanObjectStore:
+      {{- toYaml .Values.cnpg.backup.barmanObjectStore | nindent 6 }}
+    retentionPolicy: {{ .Values.cnpg.backup.retentionPolicy | default "7d" }}
+  {{- else if .Values.cnpg.backup.s3 }}
+  {{- if .Values.cnpg.backup.s3.enabled }}
   backup:
     barmanObjectStore:
       destinationPath: s3://{{ .Values.cnpg.backup.s3.bucket }}{{ .Values.cnpg.backup.s3.path }}
@@ -136,15 +143,19 @@ spec:
         {{- else }}
         inheritFromIAMRole: true
         {{- end }}
+      {{- if .Values.cnpg.backup.wal }}
       {{- if .Values.cnpg.backup.wal.enabled }}
       wal:
         compression: {{ .Values.cnpg.backup.wal.compression | default "gzip" }}
         maxParallel: 2
       {{- end }}
+      {{- end }}
       data:
         compression: gzip
         jobs: 2
     retentionPolicy: {{ .Values.cnpg.backup.retentionPolicy | default "7d" }}
+  {{- end }}
+  {{- end }}
   {{- end }}
   
   {{- if .Values.serviceAccount.create }}

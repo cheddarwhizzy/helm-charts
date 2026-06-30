@@ -2,14 +2,14 @@ apiVersion: v1
 entries:
   helm-base:
   - apiVersion: v1
-    appVersion: 0.1.47
-    created: "2026-01-11T20:25:13.537754805Z"
+    appVersion: 0.1.48
+    created: "2026-06-30T09:17:35.458776501Z"
     description: Base helm chart for DRY Kubernetes manifests
-    digest: 43463f10375c84b50887c850ad02d8f3f6f3eb50ab58a163db567247b67ca588
+    digest: 341586c0ec27e44df7bb03ce0bb770bcabb38e23046dbc52077aa72d4c979aba
     name: helm-base
     urls:
-    - https://cheddarwhizzy.github.io/helm-charts/helm-base-0.1.47.tgz
-    version: 0.1.47
+    - https://cheddarwhizzy.github.io/helm-charts/helm-base-0.1.48.tgz
+    version: 0.1.48
   - apiVersion: v1
     appVersion: 0.1.45
     created: "2026-01-11T12:24:44.50779-08:00"
@@ -295,4 +295,4 @@ entries:
     urls:
     - https://github.com/cheddarwhizzy/helm-charts/releases/download/0.1.46/helm-base-0.1.0.tgz
     version: 0.1.0
-generated: "2026-01-11T20:25:13.532070314Z"
+generated: "2026-06-30T09:17:35.454019624Z"

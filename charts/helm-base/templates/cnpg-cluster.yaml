@@ -91,20 +91,20 @@ spec:
     enablePodMonitor: {{ .Values.cnpg.cluster.monitoring.podMonitor.enabled | default true }}
   {{- end }}
   
-  {{- if .Values.cnpg.cluster.affinity.enablePodAntiAffinity }}
+  {{- if or .Values.cnpg.cluster.affinity.enablePodAntiAffinity (hasKey .Values.cnpg.cluster "nodeSelector") (hasKey .Values.cnpg.cluster "tolerations") }}
   affinity:
+    {{- if .Values.cnpg.cluster.affinity.enablePodAntiAffinity }}
     podAntiAffinityType: required
     topologyKey: {{ .Values.cnpg.cluster.affinity.topologyKey | default "topology.kubernetes.io/zone" }}
-  {{- end }}
-  
-  {{- if hasKey .Values.cnpg.cluster "nodeSelector" }}
-  nodeSelector:
-    {{- toYaml .Values.cnpg.cluster.nodeSelector | nindent 4 }}
-  {{- end }}
-
-  {{- if hasKey .Values.cnpg.cluster "tolerations" }}
-  tolerations:
-    {{- toYaml .Values.cnpg.cluster.tolerations | nindent 4 }}
+    {{- end }}
+    {{- if hasKey .Values.cnpg.cluster "nodeSelector" }}
+    nodeSelector:
+      {{- toYaml .Values.cnpg.cluster.nodeSelector | nindent 6 }}
+    {{- end }}
+    {{- if hasKey .Values.cnpg.cluster "tolerations" }}
+    tolerations:
+      {{- toYaml .Values.cnpg.cluster.tolerations | nindent 6 }}
+    {{- end }}
   {{- end }}
   
   {{- if .Values.cnpg.cluster.env }}

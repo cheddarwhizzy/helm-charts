@@ -86,6 +86,7 @@ jobs:
         git config --local user.name "GitHub Action"
 
     - name: Auto-bump chart version
+      id: version
       run: |
         CHART_FILE="${{ env.CHART_PATH }}/Chart.yaml"
         CURRENT_VERSION=$(grep '^version:' $CHART_FILE | cut -d' ' -f2)
@@ -108,70 +109,78 @@ jobs:
         fi
         
         echo "Updated Chart.yaml to version $NEW_VERSION"
-        
-        # Commit the version bump
-        git add $CHART_FILE
-        git commit -m "chore: bump chart version to $NEW_VERSION [skip ci]" || echo "No changes to commit"
-        git push origin main || echo "Push failed or no changes"
 
-    - name: Set up chart-releaser
-      uses: helm/chart-releaser-action@v1.6.0
-      with:
-        config: cr.yaml
+        # Every later step reads the version from here. It used to be published
+        # nowhere, while `Create Release` referenced
+        # steps.version.outputs.new_version with no step declaring `id: version`
+        # — so the tag rendered as "helm-base-" with an empty version.
+        echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
-    - name: Run chart-releaser
-      env:
-        CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        CR_OWNER: ${{ github.repository_owner }}
-        CR_GIT_REPO: ${{ github.event.repository.name }}
-        CR_PACKAGE_PATH: .cr-release-packages
-        CR_GIT_BASE_URL: https://api.github.com/
-        CR_GIT_UPLOAD_URL: https://uploads.github.com/
+        # NOT committed here. The bump and the index update are one release, so
+        # they are committed together at the end. Committing here is what left
+        # main at 0.1.51 while the published index sat at 0.1.46: the bump
+        # landed, the publish then failed, and the next run bumped again.
+
+    - name: Package chart
       run: |
-        # Create packages directory
-        mkdir -p .cr-release-packages
-        
-        # Package the chart
+        rm -rf .cr-release-packages && mkdir -p .cr-release-packages
         helm package ${{ env.CHART_PATH }} -d .cr-release-packages
-        
-        # Update index
-        cr index --config cr.yaml --owner ${{ github.repository_owner }} --git-repo ${{ github.event.repository.name }}
+        ls -la .cr-release-packages/
 
-    - name: Upload chart packages
-      uses: actions/upload-artifact@v3
+    - name: Create GitHub release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ steps.version.outputs.new_version }}
+      run: |
+        # Tag is the BARE version and the asset is helm-base-<version>.tgz,
+        # because that is what the published index.yaml URLs already point at:
+        #   .../releases/download/0.1.46/helm-base-0.1.46.tgz
+        # Changing the shape would orphan every existing entry.
+        gh release create "$VERSION" \
+          --title "helm-base-$VERSION" \
+          --notes "Automated release of helm-base $VERSION from main." \
+          ".cr-release-packages/helm-base-$VERSION.tgz" \
+          --repo ${{ github.repository }}
+
+    - name: Update the served repository index
+      env:
+        VERSION: ${{ steps.version.outputs.new_version }}
+      run: |
+        # index.yaml AT THE REPOSITORY ROOT is what GitHub Pages serves and what
+        # `helm dependency build` reads. The previous job generated
+        # packages/index.yaml and then ran `git add index.yaml`, adding a root
+        # file it never wrote — so the served index stayed frozen at 0.1.46
+        # through five version bumps.
+        #
+        # --merge keeps every existing entry (and their URLs); --url gives the
+        # NEW entry the release-download base it is actually hosted at.
+        helm repo index .cr-release-packages \
+          --url "https://github.com/${{ github.repository }}/releases/download/$VERSION" \
+          --merge index.yaml
+
+        cp .cr-release-packages/index.yaml index.yaml
+
+        echo "Newest entries now in the served index:"
+        grep -E "^\s+version:" index.yaml | head -3
+
+    - name: Commit the release
+      run: |
+        # One commit for the bump AND the index, so a failed publish can never
+        # leave a bumped Chart.yaml behind with nothing published.
+        git add ${{ env.CHART_PATH }}/Chart.yaml index.yaml
+        if git diff --cached --quiet; then
+          echo "Nothing to commit."
+          exit 0
+        fi
+        git commit -m "chore: release chart version ${{ steps.version.outputs.new_version }} [skip ci]"
+        git push origin main
+
+    - name: Upload chart package
+      uses: actions/upload-artifact@v4
       with:
         name: chart-packages
         path: .cr-release-packages/
 
-    - name: Update GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/main'
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: .cr-release-packages
-        destination_dir: .
-        keep_files: true
-
-    - name: Create Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: helm-base-${{ steps.version.outputs.new_version }}
-        release_name: helm-base ${{ steps.version.outputs.new_version }}
-        body: |
-          ## Changes
-          - Automated release from main branch
-          - Chart version: ${{ steps.version.outputs.new_version }}
-          
-          ## Installation
-          ```bash
-          helm repo add cheddarwhizzy https://cheddarwhizzy.github.io/helm-charts
-          helm repo update
-          helm install my-app cheddarwhizzy/helm-base
-          ```
-        draft: false
-        prerelease: false
 
   # Security scanning
   security-scan:

@@ -190,54 +190,16 @@ jobs:
           echo "⚠️  No resource limits found in templates"
         fi
 
-  release:
-    runs-on: ubuntu-latest
-    needs: [lint-and-test, security-scan]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Set up Helm
-      uses: azure/setup-helm@v4
-      with:
-        version: ${{ env.HELM_VERSION }}
-        
-    - name: Download Chart Packages
-      uses: actions/download-artifact@v4
-      with:
-        name: chart-package-charts/helm-base
-        path: /tmp
-        
-    - name: Create Release
-      run: |
-        echo "🚀 Creating release for charts..."
-        
-        # Get the chart version
-        CHART_VERSION=$(helm show chart charts/helm-base | grep '^version:' | awk '{print $2}')
-        echo "📦 Chart version: $CHART_VERSION"
-        
-        # Create a release with the chart package
-        gh release create "v$CHART_VERSION" \
-          --title "Helm Chart Release v$CHART_VERSION" \
-          --notes "Automated release of Helm charts with version $CHART_VERSION" \
-          /tmp/helm-base-*.tgz \
-          --repo ${{ github.repository }}
-          
-    - name: Update Chart Repository Index
-      run: |
-        echo "📚 Updating chart repository index..."
-        
-        # This would typically update a chart repository index
-        # For now, we'll just log what would happen
-        echo "ℹ️  Chart repository index update would happen here"
-        echo "ℹ️  This would typically involve:"
-        echo "  - Updating index.yaml"
-        echo "  - Committing changes to the repository"
-        echo "  - Publishing to a chart repository (e.g., GitHub Pages, ChartMuseum)"
+  # The `release` job that used to sit here was removed.
+  #
+  # It created tags shaped `v<version>`, while every URL in the published
+  # index.yaml points at a BARE `<version>` tag
+  # (.../releases/download/0.1.46/helm-base-0.1.46.tgz). It has never produced a
+  # release — there are zero v-prefixed releases in this repository — and its
+  # "Update Chart Repository Index" step was an explicit no-op that only echoed
+  # what it "would" do.
+  #
+  # Publishing is ci-cd.yml's `deploy` job, and only that.
 
   summary:
     runs-on: ubuntu-latest

@@ -1,11 +1,16 @@
 name: Publish Helm Charts
 
+# Publishing on push to main lives in ci-cd.yml (the `deploy` job), which is the
+# ONLY publisher. This workflow also auto-bumped the patch version on every push
+# to main and then failed at `actions/deploy-pages` (the job declares no
+# `environment: github-pages`). Two workflows each bumping and each failing is
+# how main reached Chart.yaml 0.1.51 while the published index sat at 0.1.46.
+#
+# Kept for the explicit paths — a `charts-*` tag and manual dispatch.
 on:
   push:
     tags:
       - 'charts-*'
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       chart_version:

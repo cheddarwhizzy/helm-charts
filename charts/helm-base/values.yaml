@@ -371,19 +371,27 @@ securityContext:
     # sysctls: [] # System controls
     # seLinuxOptions: {} # SELinux options
     # windowsOptions: {} # Windows-specific options
-  # Container-level security context (minimal defaults)
+  # Container-level security context.
+  # allowPrivilegeEscalation/capabilities.drop/seccompProfile are enabled by
+  # default (2026-09-09) — they are safe for the near-universal case of an
+  # app container that doesn't need extra Linux privileges, and were absent
+  # during an incident where a compromised container ran an unrestricted
+  # cryptominer. readOnlyRootFilesystem/runAsNonRoot stay opt-in per chart
+  # (see deployment/k8s/base/payload/values.yaml in r3verb for an example)
+  # since they can require app-specific writable-volume changes to adopt
+  # safely.
   containerSecurityContext:
-    # allowPrivilegeEscalation: false # Uncomment to disable privilege escalation
+    allowPrivilegeEscalation: false
     # readOnlyRootFilesystem: true # Uncomment for read-only root filesystem
     # runAsNonRoot: true # Uncomment to enforce non-root
     # runAsUser: 1000 # Uncomment to set specific user
     # runAsGroup: 1000 # Uncomment to set specific group
-    # capabilities:
-    #   drop:
-    #     - ALL # Drop all capabilities
-    #   add: [] # Add specific capabilities
-    # seccompProfile:
-    #   type: RuntimeDefault # Seccomp profile
+    capabilities:
+      drop:
+        - ALL # Drop all capabilities
+      # add: [] # Add specific capabilities back if a container needs one
+    seccompProfile:
+      type: RuntimeDefault
     # seLinuxOptions: {} # SELinux options
     # windowsOptions: {} # Windows-specific options
     # procMount: Default # Proc mount type

@@ -252,3 +252,28 @@ tests:
       - isNotEmpty:
           path: spec.template.spec.containers
 
+
+  - it: should omit replicas when an HPA owns the Deployment
+    set:
+      replicaCount: 1
+      hpa:
+        enabled: true
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should omit replicas when a KEDA ScaledObject owns the Deployment
+    set:
+      keda:
+        enabled: true
+        triggers:
+          - type: cpu
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - notExists:
+          path: spec.replicas

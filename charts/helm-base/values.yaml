@@ -24,7 +24,9 @@ nameOverride:
 # Override the full name of the chart
 fullnameOverride: 
 
-# Number of replicas for the deployment
+# Number of replicas for the Deployment/StatefulSet. Ignored (spec.replicas is
+# not rendered) when hpa or keda owns the workload, so the autoscaler and a
+# GitOps self-heal do not fight over it.
 replicaCount: 1
 # API version for the deployment resource
 apiVersion: apps/v1

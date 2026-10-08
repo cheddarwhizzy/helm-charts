@@ -76,3 +76,24 @@ tests:
           path: metadata.name
           pattern: configmap-[12]
           documentIndex: 1
+
+  - it: should skip raw resources switched off with enabled false
+    set:
+      rawResources:
+        kept:
+          type: ConfigMap
+          apiVersion: v1
+          data:
+            a: b
+        dropped:
+          enabled: false
+          type: ConfigMap
+          apiVersion: v1
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: kept
+      - notExists:
+          path: enabled

@@ -1017,6 +1017,7 @@ crds:
 # Raw Resources - Maximum flexibility for custom resources
 # This allows you to define any Kubernetes resource with full YAML support
 # and automatic commonLabels/commonAnnotations injection
+# Switch an entry off from an overlay with `name: null` or `name: {enabled: false}`.
 rawResources: {}
 # Example configurations:
 # rawResources:

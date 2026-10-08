@@ -2,6 +2,10 @@
 {{- $commonLabels := include "helm-base.commonLabels" . }}
 {{- $commonAnnotations := include "helm-base.commonAnnotations" . }}
 {{- range $name, $resource := .Values.rawResources }}
+{{- /* Skip an entry an overlay switched off: `name: null` (Helm keeps nulls in
+     values handed to a subchart, so the entry arrives as nil) or
+     `name: {enabled: false}`. */}}
+{{- if and $resource (ne (toString (dig "enabled" true $resource)) "false") }}
 ---
 apiVersion: {{ $resource.apiVersion }}
 kind: {{ $resource.type }}
@@ -25,13 +29,14 @@ metadata:
 {{- /* Create a copy of the resource without metadata fields for the body */}}
 {{- $body := dict }}
 {{- range $key, $value := $resource }}
-  {{- if not (has $key (list "apiVersion" "type" "labels" "annotations" "namespace")) }}
+  {{- if not (has $key (list "apiVersion" "type" "labels" "annotations" "namespace" "enabled")) }}
     {{- $_ := set $body $key $value }}
   {{- end }}
 {{- end }}
 {{- /* Render the entire body with template support */}}
 {{- if $body }}
 {{ tpl (toYaml $body) $ | nindent 0 }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

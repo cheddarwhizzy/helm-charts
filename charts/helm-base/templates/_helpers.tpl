@@ -630,3 +630,17 @@ Get the default service name from services (supports both map and list formats)
   {{- end }}
 {{- end }}
 {{- end -}}
+
+{{/*
+The workload kind an autoscaler (HPA or KEDA ScaledObject) owns the replica
+count of, or "" when nothing does. The Deployment/StatefulSet must then omit
+spec.replicas: rendering it makes ArgoCD self-heal reset the autoscaler's
+choice back to replicaCount on every reconcile, and the two fight forever.
+*/}}
+{{- define "helm-base.autoscaledKind" -}}
+{{- if .Values.hpa.enabled -}}
+{{- default "Deployment" .Values.hpa.kind -}}
+{{- else if and .Values.keda .Values.keda.enabled -}}
+{{- .Values.kind -}}
+{{- end -}}
+{{- end -}}

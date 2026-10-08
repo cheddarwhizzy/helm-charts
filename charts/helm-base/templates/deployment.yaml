@@ -12,7 +12,9 @@ metadata:
   annotations:
 {{- $commonAnnotations | nindent 4 }}
 spec:
+  {{- if ne (include "helm-base.autoscaledKind" $) "Deployment" }}
   replicas: {{ $.Values.replicaCount }}
+  {{- end }}
   progressDeadlineSeconds: {{ $.Values.progressDeadlineSeconds }}
   {{- if $.Values.minReadySeconds }}
   minReadySeconds: {{ $.Values.minReadySeconds }}

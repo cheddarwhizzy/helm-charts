@@ -212,3 +212,30 @@ tests:
       - equal:
           path: spec.template.spec.initContainers[0].env[0].value
           value: setup
+
+  - it: should omit replicas when an HPA owns the StatefulSet
+    set:
+      kind: StatefulSet
+      hpa:
+        enabled: true
+        kind: StatefulSet
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: should keep replicas when the HPA targets a Deployment
+    set:
+      kind: StatefulSet
+      replicaCount: 2
+      hpa:
+        enabled: true
+      containers:
+        - name: app
+          image: nginx:latest
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2

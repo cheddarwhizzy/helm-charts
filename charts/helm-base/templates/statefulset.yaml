@@ -19,7 +19,9 @@ spec:
 {{ $selectorLabels | indent 6 }}
 
   serviceName: {{ default (include "helm-base.fullname" .) .Values.statefulSet.serviceName }}
+  {{- if ne (include "helm-base.autoscaledKind" .) "StatefulSet" }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   template:
     {{- include "helm-base.pod" . }}
 

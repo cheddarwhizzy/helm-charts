@@ -46,6 +46,12 @@ spec:
       tolerations:
         {{- toYaml .template.pod.tolerations | nindent 8 }}
       {{- end }}
+
+      {{- /* Strimzi PodTemplate.priorityClassName, e.g. prod-critical so a prod
+           broker outranks staging on a shared cluster. Unset renders nothing. */}}
+      {{- if .template.pod.priorityClassName }}
+      priorityClassName: {{ .template.pod.priorityClassName }}
+      {{- end }}
     {{- end }}
   {{- end }}
 {{- end }}

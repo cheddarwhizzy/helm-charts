@@ -91,8 +91,19 @@ spec:
     enablePodMonitor: {{ .Values.cnpg.cluster.monitoring.podMonitor.enabled | default true }}
   {{- end }}
   
-  {{- if or .Values.cnpg.cluster.affinity.enablePodAntiAffinity (hasKey .Values.cnpg.cluster "nodeSelector") (hasKey .Values.cnpg.cluster "tolerations") }}
+  {{- /* Lets a production database outrank (and preempt) staging workloads on a
+       shared cluster. Unset renders nothing. */}}
+  {{- if .Values.cnpg.cluster.priorityClassName }}
+  priorityClassName: {{ .Values.cnpg.cluster.priorityClassName }}
+  {{- end }}
+
+  {{- if or .Values.cnpg.cluster.affinity.enablePodAntiAffinity (hasKey .Values.cnpg.cluster "nodeSelector") (hasKey .Values.cnpg.cluster "tolerations") .Values.cnpg.cluster.affinity.nodeAffinity }}
   affinity:
+    {{- /* A standard NodeAffinity, e.g. keep a prod database off a memory-starved node. */}}
+    {{- with .Values.cnpg.cluster.affinity.nodeAffinity }}
+    nodeAffinity:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     {{- if .Values.cnpg.cluster.affinity.enablePodAntiAffinity }}
     podAntiAffinityType: required
     topologyKey: {{ .Values.cnpg.cluster.affinity.topologyKey | default "topology.kubernetes.io/zone" }}

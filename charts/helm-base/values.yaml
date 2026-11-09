@@ -1,5 +1,9 @@
 # Global configuration applied to all resources
 global:
+  # Defaults for every pod in the release (jobs and crons included); a
+  # workload's own priorityClassName / affinity wins when set.
+  # priorityClassName: ""
+  # affinity: {}
   # Image pull secrets for private registries
   imagePullSecrets: []
   # Global image configuration

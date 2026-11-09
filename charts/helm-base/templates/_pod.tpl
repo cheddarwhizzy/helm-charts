@@ -22,8 +22,11 @@
       {{- if .Values.hostPID }}
       hostPID: {{ .Values.hostPID }}
       {{- end }}
-      {{- if .Values.priorityClassName }}
-      priorityClassName: {{ .Values.priorityClassName }}
+      {{- /* Per-workload value wins; global.priorityClassName covers every
+           workload (jobs, crons) of a release, e.g. prod-critical. */}}
+      {{- $prio := .Values.priorityClassName | default ((.Values.global | default dict).priorityClassName) }}
+      {{- if $prio }}
+      priorityClassName: {{ $prio }}
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
 {{ include "helm-base.hostAliases" . | indent 6 }}
@@ -99,7 +102,7 @@
       nodeSelector:
         {{- tpl (toYaml . ) $ | nindent 8 }}
       {{- end }}
-    {{- with .Values.affinity }}
+    {{- with (.Values.affinity | default ((.Values.global | default dict).affinity)) }}
       affinity:
         {{- tpl (toYaml . ) $ | nindent 8 }}
     {{- end }}

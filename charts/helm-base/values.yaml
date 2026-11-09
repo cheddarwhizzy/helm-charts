@@ -1335,6 +1335,13 @@ cnpg:
     affinity:
       enablePodAntiAffinity: true
       topologyKey: "topology.kubernetes.io/zone"
+      # Optional standard NodeAffinity, rendered under spec.affinity.nodeAffinity
+      # (e.g. requiredDuringScheduling... NotIn [a memory-starved node]).
+      # nodeAffinity: {}
+
+    # Optional PriorityClass for the instances, e.g. so a prod database
+    # outranks staging on a shared cluster. Unset renders nothing.
+    # priorityClassName: ""
       
     # Node selector
     nodeSelector: {}
